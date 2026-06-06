@@ -1,0 +1,523 @@
+{% extends 'base.html' %}
+{% block title %}Threat Intelligence Portal{% endblock %}
+
+{% block content %}
+<!-- Custom Threat Intel CSS Styling -->
+<style>
+    .threat-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        border-radius: 12px;
+        padding: 30px;
+        color: #ffffff;
+        margin-bottom: 25px;
+        box-shadow: 0 8px 32px rgba(15, 23, 42, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .glass-card-threat {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+        margin-bottom: 25px;
+    }
+
+    /* Tab Custom Styling */
+    .threat-tabs {
+        border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+        margin-bottom: 20px;
+    }
+
+    .threat-tabs .nav-link {
+        border: none;
+        color: var(--text-muted);
+        font-weight: 600;
+        padding: 12px 20px;
+        position: relative;
+        transition: all 0.2s;
+    }
+
+    .threat-tabs .nav-link:hover {
+        color: var(--primary-navy);
+        background: none;
+    }
+
+    .threat-tabs .nav-link.active {
+        color: #0d6efd;
+        background: none;
+        border: none;
+    }
+
+    .threat-tabs .nav-link.active::after {
+        content: '';
+        position: absolute;
+        bottom: -2px;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background-color: #0d6efd;
+        border-radius: 3px;
+    }
+
+    /* Verdict Glowing Badges */
+    .verdict-banner {
+        border-radius: 12px;
+        padding: 25px;
+        text-align: center;
+        margin-bottom: 25px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+    }
+
+    .verdict-clean {
+        background: linear-gradient(135deg, rgba(25, 135, 84, 0.05) 0%, rgba(25, 135, 84, 0.12) 100%);
+        color: #198754;
+        border: 1px solid rgba(25, 135, 84, 0.2);
+    }
+
+    .verdict-suspicious {
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.05) 0%, rgba(255, 193, 7, 0.12) 100%);
+        color: #ffc107;
+        border: 1px solid rgba(255, 193, 7, 0.2);
+    }
+
+    .verdict-malicious {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.05) 0%, rgba(220, 53, 69, 0.12) 100%);
+        color: #dc3545;
+        border: 1px solid rgba(220, 53, 69, 0.2);
+        animation: threatPulse 2.5s infinite;
+    }
+
+    @keyframes threatPulse {
+        0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.2); }
+        70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+    }
+
+    /* Scrollable engine container */
+    .engine-scrollable {
+        max-height: 350px;
+        overflow-y: auto;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+    }
+
+    /* Search engine input */
+    .engine-search-box {
+        border-radius: 20px;
+        padding-left: 15px;
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+
+    /* Gauge bar for IP Trust */
+    .gauge-container {
+        height: 10px;
+        background-color: rgba(0, 0, 0, 0.05);
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    .gauge-bar {
+        height: 100%;
+        border-radius: 20px;
+        transition: width 0.6s ease;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Header Block -->
+    <div class="threat-header d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <h1 class="m-0 fs-3"><i class="fa-solid fa-database me-2 text-info"></i> Threat Intelligence Portal</h1>
+            <p class="m-0 opacity-75 mt-1">Cross-check Indicators of Compromise (IoCs) across global security platforms and lookup host reputations.</p>
+        </div>
+        <div>
+            <span class="badge bg-dark-subtle border border-light-subtle py-2 px-3 fw-semibold">
+                <i class="fa-solid fa-circle-check text-success me-1"></i> VT & AbuseIPDB Connected
+            </span>
+        </div>
+    </div>
+
+    <!-- Inputs & Tab Selector Row -->
+    <div class="row">
+        <div class="col-lg-5">
+            <div class="glass-card-threat">
+                <h4 class="mb-4 text-primary"><i class="fa-solid fa-magnifying-glass-chart me-2"></i> IoC Reputation Search</h4>
+                
+                <!-- Bootstraps standard Nav-Tabs for Switching Fields -->
+                <ul class="nav nav-tabs threat-tabs" id="threatTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="url-tab" data-bs-toggle="tab" data-bs-target="#url-pane" 
+                                type="button" role="tab" aria-controls="url-pane" aria-selected="true">
+                            <i class="fa-solid fa-globe me-1"></i> URL Check
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="hash-tab" data-bs-toggle="tab" data-bs-target="#hash-pane" 
+                                type="button" role="tab" aria-controls="hash-pane" aria-selected="false">
+                            <i class="fa-solid fa-file-shield me-1"></i> File Hash
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="ip-tab" data-bs-toggle="tab" data-bs-target="#ip-pane" 
+                                type="button" role="tab" aria-controls="ip-pane" aria-selected="false">
+                            <i class="fa-solid fa-server me-1"></i> IP Reputation
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tabs Content Panes containing separate forms -->
+                <div class="tab-content" id="threatTabContent">
+                    <!-- URL Checker Tab -->
+                    <div class="tab-pane fade show active" id="url-pane" role="tabpanel" aria-labelledby="url-tab">
+                        <form method="POST" action="/threat" class="threat-form">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold" for="url_query">Domain or URL Path</label>
+                                <input type="text" id="url_query" name="query" class="form-control" 
+                                       placeholder="e.g. badsite.com or http://suspicious-link.net" required>
+                                <div class="form-text text-muted">Submit websites to query active engine verdicts on VirusTotal.</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 py-2.5 fw-semibold">
+                                <i class="fa-solid fa-magnifying-glass me-2"></i> Audit URL Reputation
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Hash Checker Tab -->
+                    <div class="tab-pane fade" id="hash-pane" role="tabpanel" aria-labelledby="hash-tab">
+                        <form method="POST" action="/threat" class="threat-form">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold" for="hash_query">Cryptographic File Hash</label>
+                                <input type="text" id="hash_query" name="query" class="form-control font-monospace" 
+                                       placeholder="MD5, SHA-1, or SHA-256 signature" required>
+                                <div class="form-text text-muted">Checks file signatures against global malware intelligence hashes.</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 py-2.5 fw-semibold">
+                                <i class="fa-solid fa-file-shield me-2"></i> Search File Hash
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- IP Reputation Tab -->
+                    <div class="tab-pane fade" id="ip-pane" role="tabpanel" aria-labelledby="ip-tab">
+                        <form method="POST" action="/threat" class="threat-form">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold" for="ip_query">Target IP Address</label>
+                                <input type="text" id="ip_query" name="query" class="form-control" 
+                                       placeholder="e.g. 8.8.8.8 or an active host IP" required>
+                                <div class="form-text text-muted">Queries AbuseIPDB to look up reports of malicious spam, scanning, or attacks.</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 py-2.5 fw-semibold">
+                                <i class="fa-solid fa-shield-halved me-2"></i> Query IP Reputation
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            {% if results %}
+            <div id="results-area">
+                <!-- Large Verdict Banner -->
+                {% if results.verdict == 'CLEAN' %}
+                <div class="verdict-banner verdict-clean">
+                    <div class="display-4"><i class="fa-solid fa-circle-check"></i></div>
+                    <h2 class="m-0 mt-2 fw-bold">CLEAN VERDICT</h2>
+                    <p class="m-0 mt-1 opacity-75">Indicator of Compromise (IoC) has cleared all threat indicators successfully.</p>
+                </div>
+                {% elif results.verdict == 'SUSPICIOUS' %}
+                <div class="verdict-banner verdict-suspicious">
+                    <div class="display-4"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                    <h2 class="m-0 mt-2 fw-bold">SUSPICIOUS VERDICT</h2>
+                    <p class="m-0 mt-1 opacity-75">Some scanning engines or reports flagged suspicious behaviors or attributes.</p>
+                </div>
+                {% else %}
+                <div class="verdict-banner verdict-malicious">
+                    <div class="display-4"><i class="fa-solid fa-biohazard"></i></div>
+                    <h2 class="m-0 mt-2 fw-bold">MALICIOUS VERDICT</h2>
+                    <p class="m-0 mt-1 opacity-75">Warning: Verified malware reports or positive engine detections found!</p>
+                </div>
+                {% endif %}
+
+                <!-- Output details based on checked target type -->
+                {% if results.target_type == 'ip' %}
+                <!-- AbuseIPDB IP reputation details -->
+                <div class="glass-card-threat">
+                    <h4 class="mb-4 text-primary"><i class="fa-solid fa-server me-2"></i> AbuseIPDB Reputation Telemetry</h4>
+                    
+                    <!-- Confidence score bar -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="fw-semibold">Abuse Confidence Score</span>
+                            <span class="fw-bold text-primary">{{ results.abuse_confidence_score }}%</span>
+                        </div>
+                        <div class="gauge-container">
+                            {% if results.abuse_confidence_score < 10 %}
+                                <div class="gauge-bar bg-success" style="width: {{ results.abuse_confidence_score }}%"></div>
+                            {% elif results.abuse_confidence_score <= 30 %}
+                                <div class="gauge-bar bg-warning" style="width: {{ results.abuse_confidence_score }}%"></div>
+                            {% else %}
+                                <div class="gauge-bar bg-danger" style="width: {{ results.abuse_confidence_score }}%"></div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- IP Attributes -->
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <div class="p-3 bg-light rounded border">
+                                <span class="d-block fs-11 text-muted fw-bold text-uppercase">Country Location</span>
+                                <span class="fs-15 fw-bold text-dark d-flex align-items-center gap-2 mt-1">
+                                    <i class="fa-solid fa-flag text-primary"></i> {{ results.country }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="p-3 bg-light rounded border">
+                                <span class="d-block fs-11 text-muted fw-bold text-uppercase">Internet Service Provider</span>
+                                <span class="fs-15 fw-bold text-dark d-block text-truncate mt-1" title="{{ results.isp }}">
+                                    <i class="fa-solid fa-tower-cell text-muted me-1"></i> {{ results.isp }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="p-3 bg-light rounded border">
+                                <span class="d-block fs-11 text-muted fw-bold text-uppercase">Global Abuse Reports</span>
+                                <span class="fs-15 fw-bold text-dark d-block mt-1">
+                                    <i class="fa-solid fa-bullhorn text-warning me-1"></i> {{ results.total_reports }} Reports
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="p-3 bg-light rounded border">
+                                <span class="d-block fs-11 text-muted fw-bold text-uppercase">Last Reported Date</span>
+                                <span class="fs-15 fw-bold text-dark d-block text-truncate mt-1" title="{{ results.last_reported_date }}">
+                                    <i class="fa-solid fa-clock text-muted me-1"></i> {{ results.last_reported_date }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% elif results.target_type == 'hash' %}
+                <!-- VirusTotal File hash results -->
+                <div class="glass-card-threat">
+                    <h4 class="mb-4 text-primary"><i class="fa-solid fa-file-shield me-2"></i> VirusTotal File Analytics</h4>
+                    
+                    <div class="p-3 bg-light rounded border mb-4">
+                        <h5 class="m-0 text-dark text-truncate" title="{{ results.file_name }}"><i class="fa-solid fa-file-signature text-primary me-2"></i> {{ results.file_name }}</h5>
+                        <p class="m-0 fs-13 text-muted mt-1">Format/Classification: **{{ results.type_description }}** | File Size: **{{ results.file_size }} bytes**</p>
+                    </div>
+
+                    <!-- Detection bar -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="fw-semibold">Antivirus Engine Detection Ratio</span>
+                            <span class="fw-bold text-danger">{{ results.detection_ratio }}</span>
+                        </div>
+                        {% set total_num = results.total_engines | float %}
+                        {% set mal_num = results.malicious_count | float %}
+                        {% set ratio_pct = 0 %}
+                        {% if total_num > 0 %}
+                            {% set ratio_pct = (mal_num / total_num) * 100 %}
+                        {% endif %}
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ ratio_pct }}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <div class="p-3 bg-light rounded border">
+                                <span class="d-block fs-11 text-muted fw-bold text-uppercase">Malware Signature Classification</span>
+                                <span class="fs-15 fw-bold text-danger d-block mt-1">
+                                    <i class="fa-solid fa-virus me-1"></i> {{ results.threat_label }}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="p-3 bg-light rounded border">
+                                <span class="d-block fs-11 text-muted fw-bold text-uppercase">Scan Scope Directory</span>
+                                <span class="fs-15 fw-bold text-dark d-block mt-1">
+                                    <i class="fa-solid fa-clipboard-list text-muted me-1"></i> {{ results.total_engines }} Scanner Engines
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% elif results.target_type == 'url' %}
+                <!-- VirusTotal URL reputation details -->
+                <div class="glass-card-threat">
+                    <h4 class="mb-4 text-primary"><i class="fa-solid fa-globe me-2"></i> VirusTotal URL Scan Metrics</h4>
+                    
+                    {% if results.message %}
+                    <div class="alert alert-info-subtle p-3 border rounded mb-4" style="background: rgba(13, 110, 253, 0.05); color: #0d6efd; border-color: rgba(13, 110, 253, 0.1);">
+                        <i class="fa-solid fa-circle-info me-1"></i> {{ results.message }}
+                    </div>
+                    {% endif %}
+
+                    <!-- Detection bar -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="fw-semibold">Engine Reputation Verdicts</span>
+                            <span class="fw-bold text-danger">{{ results.malicious_count }} / {{ results.total_engines }} Engines</span>
+                        </div>
+                        {% set total_num = results.total_engines | float %}
+                        {% set mal_num = results.malicious_count | float %}
+                        {% set ratio_pct = 0 %}
+                        {% if total_num > 0 %}
+                            {% set ratio_pct = (mal_num / total_num) * 100 %}
+                        {% endif %}
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ ratio_pct }}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed scan breakdown -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-4">
+                            <div class="p-3 bg-light text-center rounded border">
+                                <span class="d-block fs-20 fw-bold text-danger">{{ results.malicious_count }}</span>
+                                <span class="fs-11 text-muted text-uppercase fw-semibold">Malicious Flagged</span>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="p-3 bg-light text-center rounded border">
+                                <span class="d-block fs-20 fw-bold text-warning">{{ results.suspicious_count }}</span>
+                                <span class="fs-11 text-muted text-uppercase fw-semibold">Suspicious Flagged</span>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="p-3 bg-light text-center rounded border">
+                                <span class="d-block fs-20 fw-bold text-success">{{ results.total_engines - results.malicious_count - results.suspicious_count }}</span>
+                                <span class="fs-11 text-muted text-uppercase fw-semibold">Engines Clean</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Engine by Engine breakdown table -->
+                    {% if results.last_analysis_results %}
+                    <h5 class="mb-3"><i class="fa-solid fa-list-check text-muted me-1"></i> Scanner Engine Probes</h5>
+                    
+                    <!-- Search bar inside breakdown -->
+                    <input type="text" id="engineSearch" class="form-control engine-search-box" placeholder="Filter scanner engine names (e.g. Kaspersky, Sophos)...">
+                    
+                    <div class="engine-scrollable">
+                        <table class="table table-hover table-sm align-middle m-0" id="enginesTable">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th scope="col" style="padding-left: 15px;">Scanner Engine</th>
+                                    <th scope="col">Probe Category</th>
+                                    <th scope="col">Specific Output</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for engine_name, engine_data in results.last_analysis_results.items() %}
+                                <tr>
+                                    <td class="fw-semibold" style="padding-left: 15px;">{{ engine_name }}</td>
+                                    <td>
+                                        {% if engine_data.category == 'malicious' %}
+                                            <span class="badge bg-danger">Malicious</span>
+                                        {% elif engine_data.category == 'suspicious' %}
+                                            <span class="badge bg-warning">Suspicious</span>
+                                        {% elif engine_data.category == 'harmless' %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">Clean</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary-subtle text-secondary border">Undetected</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="font-monospace fs-12 text-muted">{{ engine_data.result or 'Clean / Unrated' }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+
+                <!-- Export Report Ribbon -->
+                <div class="glass-card-threat d-flex align-items-center justify-content-between flex-wrap gap-3 py-3">
+                    <span class="fs-14 text-muted"><i class="fa-solid fa-file-export me-1"></i> Keep record of these reputation logs by exporting to PDF.</span>
+                    <form method="POST" action="/report">
+                        <input type="hidden" name="module_name" value="Threat Intelligence">
+                        <input type="hidden" name="target" value="{{ results.query }}">
+                        <input type="hidden" name="results_json" value='{{ results | tojson }}'>
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fa-solid fa-file-pdf me-1"></i> Export Threat Profile PDF
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <!-- Initial Empty State Mock Card -->
+            <div class="glass-card-threat text-center py-5">
+                <div class="display-2 text-muted opacity-25 mb-3">
+                    <i class="fa-solid fa-magnifying-glass-chart fa-beat-fade"></i>
+                </div>
+                <h4 class="text-secondary mb-2">Portal Idle & Awaiting IoC</h4>
+                <p class="text-muted mx-auto fs-14" style="max-width: 480px;">
+                    Select the URL, File Hash, or IP tab in the left card, input a value, and submit to inspect details against global security directories.
+                </p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Interactive Client-side Script to handle Tab Persistence & Engine Filtering -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Tab persistence mechanism based on results metadata
+        {% if results %}
+            const activeType = "{{ results.target_type }}";
+            const tabs = {
+                "url": document.getElementById("url-tab"),
+                "hash": document.getElementById("hash-tab"),
+                "ip": document.getElementById("ip-tab")
+            };
+            const panes = {
+                "url": document.getElementById("url-pane"),
+                "hash": document.getElementById("hash-pane"),
+                "ip": document.getElementById("ip-pane")
+            };
+
+            // Reset active states
+            Object.values(tabs).forEach(t => t.classList.remove("active"));
+            Object.values(panes).forEach(p => p.classList.remove("show", "active"));
+
+            // Activate targeting state
+            if (tabs[activeType]) {
+                tabs[activeType].classList.add("active");
+                panes[activeType].classList.add("show", "active");
+            }
+        {% endif %}
+
+        // Realtime Client-side filtering of VirusTotal Engine rows
+        const searchInput = document.getElementById("engineSearch");
+        if (searchInput) {
+            searchInput.addEventListener("keyup", function() {
+                const filter = this.value.toUpperCase();
+                const rows = document.querySelectorAll("#enginesTable tbody tr");
+                
+                rows.forEach(row => {
+                    const engineCell = row.cells[0];
+                    if (engineCell) {
+                        const txtValue = engineCell.textContent || engineCell.innerText;
+                        if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                            row.style.display = "";
+                        } else {
+                            row.style.display = "none";
+                        }
+                    }
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}

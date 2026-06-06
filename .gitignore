@@ -1,0 +1,36 @@
+# API Keys - NEVER commit this
+.env
+
+# Python virtual environment
+venv/
+env/
+
+# Generated reports - keep private
+reports/
+
+# Uploaded files
+uploads/
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.suo
+
+# Folium generated maps
+static/maps/
+
+flask_sessions/
+scratch/
+*.docx
+reports/*.pdf
+.sixth

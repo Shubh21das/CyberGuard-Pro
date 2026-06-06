@@ -1,0 +1,229 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Premium Hover Animation Styles for Module Cards */
+    .module-card {
+        border-radius: 16px !important;
+        border: 1px solid rgba(0, 0, 0, 0.06) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03) !important;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        background-color: #ffffff !important;
+        border-top: 4px solid var(--primary-navy) !important;
+    }
+    
+    .module-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 28px rgba(27, 58, 107, 0.09) !important;
+        border-top-color: var(--accent-blue) !important;
+    }
+    
+    .icon-wrapper {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        background-color: rgba(13, 110, 253, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: var(--accent-blue);
+        margin-bottom: 16px;
+        transition: all 0.25s ease-in-out;
+    }
+    
+    .module-card:hover .icon-wrapper {
+        background-color: var(--accent-blue);
+        color: #ffffff;
+    }
+
+    .btn-launch {
+        font-weight: 600;
+        font-size: 14px;
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: 1px solid rgba(13, 110, 253, 0.15);
+        color: var(--accent-blue);
+        background-color: rgba(13, 110, 253, 0.03);
+        transition: all 0.2s ease-in-out;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+
+    .module-card:hover .btn-launch {
+        background-color: var(--accent-blue);
+        color: #ffffff;
+        border-color: var(--accent-blue);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+
+    <!-- 1. Hero Section with Rich Styling -->
+    <div class="cyber-card mb-4 text-center py-5 text-white position-relative overflow-hidden" 
+         style="background: linear-gradient(135deg, #1B3A6B 0%, #0d6efd 100%); border-top: none; border-radius: 20px;">
+        <div class="position-relative z-1">
+            <h1 class="display-4 fw-bold text-white mb-2"><i class="fa-solid fa-shield-halved me-3"></i>CyberGuard Pro</h1>
+            <p class="lead text-white-50 mb-0">Ethical Security Assessment & Forensic Incident Response Toolkit</p>
+        </div>
+    </div>
+
+    <!-- 2. System Status Bar -->
+    <div class="card mb-4 border-0 shadow-sm" style="border-left: 5px solid #198754 !important; border-radius: 12px;">
+        <div class="card-body d-flex align-items-center justify-content-between flex-wrap py-3 px-4 gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <span class="spinner-grow spinner-grow-sm text-success" role="status" aria-hidden="true"></span>
+                <div>
+                    <span class="fw-bold text-success" style="font-size: 15px;">All Systems Ready</span>
+                    <span class="text-muted ms-2 d-none d-sm-inline" style="font-size: 13.5px;">- 8 auditing modules initialized & verified for explicit target scanning.</span>
+                </div>
+            </div>
+            <div class="text-muted" style="font-size: 12.5px; font-weight: 500;">
+                <i class="fa-solid fa-lock me-1 text-success"></i> Ethical Mode Active
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Module Cards Grid Layout -->
+    <div class="row g-4 mb-5">
+        
+        <!-- Module 1: OSINT Recon -->
+        <div class="col-12 col-md-6 col-xxl-3">
+            <div class="card module-card p-4">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-globe"></i>
+                </div>
+                <h4 class="h5 fw-bold mb-2">OSINT Recon{% if session.get('recon') %} <i class="fa-solid fa-circle-check text-success ms-1" title="Executed this session"></i>{% endif %}</h4>
+                <p class="text-muted small flex-grow-1 mb-4">
+                    Enumerate public DNS domain mappings, retrieve official registrar WHOIS datasets, and lookup active MX properties securely.
+                </p>
+                <a href="{{ url_for('recon') }}" class="btn-launch">
+                    Launch Module <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Module 2: Network Scanner -->
+        <div class="col-12 col-md-6 col-xxl-3">
+            <div class="card module-card p-4">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-network-wired"></i>
+                </div>
+                <h4 class="h5 fw-bold mb-2">Network Scanner{% if session.get('network') %} <i class="fa-solid fa-circle-check text-success ms-1" title="Executed this session"></i>{% endif %}</h4>
+                <p class="text-muted small flex-grow-1 mb-4">
+                    Identify target availability, run safe socket sweep audits on common ports, and discover active network services.
+                </p>
+                <a href="{{ url_for('network') }}" class="btn-launch">
+                    Launch Module <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Module 3: Threat Intelligence -->
+        <div class="col-12 col-md-6 col-xxl-3">
+            <div class="card module-card p-4">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-database"></i>
+                </div>
+                <h4 class="h5 fw-bold mb-2">Threat Intelligence{% if session.get('threat') %} <i class="fa-solid fa-circle-check text-success ms-1" title="Executed this session"></i>{% endif %}</h4>
+                <p class="text-muted small flex-grow-1 mb-4">
+                    Lookup reputations of suspicious IP addresses or hash signatures against AbuseIPDB and VirusTotal databases.
+                </p>
+                <a href="{{ url_for('threat') }}" class="btn-launch">
+                    Launch Module <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Module 4: Web Security -->
+        <div class="col-12 col-md-6 col-xxl-3">
+            <div class="card module-card p-4">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-code"></i>
+                </div>
+                <h4 class="h5 fw-bold mb-2">Web Security{% if session.get('websec') %} <i class="fa-solid fa-circle-check text-success ms-1" title="Executed this session"></i>{% endif %}</h4>
+                <p class="text-muted small flex-grow-1 mb-4">
+                    Inspect HTTP security header headers, assess remote SSL certificates parameters, and analyze exposed header properties.
+                </p>
+                <a href="{{ url_for('websec') }}" class="btn-launch">
+                    Launch Module <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Module 5: Digital Forensics -->
+        <div class="col-12 col-md-6 col-xxl-3">
+            <div class="card module-card p-4">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-magnifying-glass-location"></i>
+                </div>
+                <h4 class="h5 fw-bold mb-2">Digital Forensics{% if session.get('forensics') %} <i class="fa-solid fa-circle-check text-success ms-1" title="Executed this session"></i>{% endif %}</h4>
+                <p class="text-muted small flex-grow-1 mb-4">
+                    Safely upload and inspect media properties to carve hidden EXIF tags, GPS metadata, and inspect target file markers.
+                </p>
+                <a href="{{ url_for('forensics') }}" class="btn-launch">
+                    Launch Module <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Module 6: Phishing Detector -->
+        <div class="col-12 col-md-6 col-xxl-3">
+            <div class="card module-card p-4">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-envelope-open-text"></i>
+                </div>
+                <h4 class="h5 fw-bold mb-2">Phishing Detector{% if session.get('phishing') %} <i class="fa-solid fa-circle-check text-success ms-1" title="Executed this session"></i>{% endif %}</h4>
+                <p class="text-muted small flex-grow-1 mb-4">
+                    Inspect raw email content blocks to crosscheck DKIM parameters, SPF pass levels, and DMARC spoof hazards.
+                </p>
+                <a href="{{ url_for('phishing') }}" class="btn-launch">
+                    Launch Module <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Module 7: Password Analyzer -->
+        <div class="col-12 col-md-6 col-xxl-3">
+            <div class="card module-card p-4">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-key"></i>
+                </div>
+                <h4 class="h5 fw-bold mb-2">Password Analyzer{% if session.get('passwords') %} <i class="fa-solid fa-circle-check text-success ms-1" title="Executed this session"></i>{% endif %}</h4>
+                <p class="text-muted small flex-grow-1 mb-4">
+                    Audit password strength scores locally using zxcvbn rules and query the public HIBP breach database safely.
+                </p>
+                <a href="{{ url_for('passwords') }}" class="btn-launch">
+                    Launch Module <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Module 8: Report Generator -->
+        <div class="col-12 col-md-6 col-xxl-3">
+            <div class="card module-card p-4">
+                <div class="icon-wrapper">
+                    <i class="fa-solid fa-file-pdf"></i>
+                </div>
+                <h4 class="h5 fw-bold mb-2">Report Generator</h4>
+                <p class="text-muted small flex-grow-1 mb-4">
+                    Compile security audit logs, metadata sweeps, and active reports into high-quality, professional PDF files.
+                </p>
+                <a href="{{ url_for('report') }}" class="btn-launch">
+                    Launch Module <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

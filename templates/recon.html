@@ -1,0 +1,409 @@
+{% extends 'base.html' %}
+{% block title %}OSINT Reconnaissance - CyberGuard Pro{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <h1 class="page-title"><i class="fa-solid fa-globe" style="color: var(--accent-blue);"></i> OSINT Passive Recon</h1>
+    <p class="page-subtitle text-muted">Gather passive intelligence, resolve DNS mappings, search registry WHOIS details, geolocate coordinates, and perform Shodan vulnerability scans against authorized targets.</p>
+</div>
+
+<!-- Target Submission Panel -->
+<div class="card shadow-sm border-0 mb-4" style="border-top: 4px solid var(--primary-navy, #1B3A6B);">
+    <div class="card-body p-4">
+        <h5 class="card-title fw-bold mb-3"><i class="fa-solid fa-shield-halved text-primary"></i> Target Configuration</h5>
+        <form method="POST">
+            <div class="row align-items-end g-3">
+                <div class="col-md-9">
+                    <label class="form-label fw-semibold text-secondary" for="target">Authorized Target Domain or IP Address</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-network-wired"></i></span>
+                        <input type="text" id="target" name="target" class="form-control border-start-0" 
+                               placeholder="e.g. google.com, testfire.net, or 8.8.8.8" required 
+                               value="{{ request.form.get('target', '') }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold">
+                        <i class="fa-solid fa-satellite-dish me-2"></i> Run Recon
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if results %}
+<!-- Scan Summary Headers -->
+<div class="alert alert-secondary border-0 d-flex flex-wrap justify-content-between align-items-center mb-4 p-3 shadow-sm" style="border-left: 5px solid #0d6efd;">
+    <div class="d-flex align-items-center gap-3">
+        <div class="spinner-grow spinner-grow-sm text-success" role="status"></div>
+        <div>
+            <span class="fw-bold text-dark">Target Profile: </span>
+            <span class="badge bg-primary px-2.5 py-1.5 fs-7">{{ results.scan_target }}</span>
+            <span class="badge bg-secondary px-2.5 py-1.5 fs-7 ms-1">{{ results.target_type }}</span>
+            {% if results.resolved_host_ip %}
+            <span class="ms-2 text-muted">Resolved Host: <strong class="text-dark">{{ results.resolved_host_ip }}</strong></span>
+            {% elif results.reverse_dns %}
+            <span class="ms-2 text-muted">PTR Domain: <strong class="text-dark">{{ results.reverse_dns }}</strong></span>
+            {% endif %}
+        </div>
+    </div>
+    <span class="badge bg-success py-2 px-3 fw-bold shadow-sm"><i class="fa-solid fa-shield me-1.5"></i> Scan Completed</span>
+</div>
+
+<!-- 2x2 Grid of Styled Diagnostic Cards -->
+<div class="row g-4 mb-4">
+    <!-- CARD 1: SHODAN RESULTS -->
+    <div class="col-md-6">
+        <div class="card h-100 shadow-sm border-0" style="border-top: 3px solid #dc3545;">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-server text-danger me-2"></i> Shodan Threat Feed</h5>
+                <span class="badge bg-light text-danger fw-semibold"><i class="fa-solid fa-bug"></i> Vulnerability Audit</span>
+            </div>
+            <div class="card-body">
+                {% set shodan = results.shodan_data %}
+                {% if shodan and shodan.status == 'Success' %}
+                    <div class="mb-3">
+                        <div class="row text-center bg-light rounded p-2 g-2">
+                            <div class="col-6 border-end">
+                                <span class="text-muted d-block small">Organization</span>
+                                <strong class="text-dark">{{ shodan.organization }}</strong>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted d-block small">Country</span>
+                                <strong class="text-dark">{{ shodan.country }}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Open Ports -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small d-block mb-1">Open Ports Identified</label>
+                        {% if shodan.open_ports %}
+                            <div class="d-flex flex-wrap gap-1.5">
+                                {% for port in shodan.open_ports %}
+                                    <span class="badge bg-danger shadow-sm px-2.5 py-1.5 fw-bold fs-7"><i class="fa-solid fa-door-open me-1"></i> {{ port }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <span class="text-muted small">No open ports indexed by Shodan.</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Services Table -->
+                    {% if shodan.services %}
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary small mb-1">Indexed Ports & Services</label>
+                        <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                            <table class="table table-sm table-striped table-hover align-middle mb-0 text-nowrap" style="font-size: 0.8rem;">
+                                <thead class="table-dark sticky-top">
+                                    <tr>
+                                        <th>Port</th>
+                                        <th>Protocol</th>
+                                        <th>Service Product</th>
+                                        <th>Version</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for s in shodan.services %}
+                                    <tr>
+                                        <td><strong class="text-danger">{{ s.port }}</strong></td>
+                                        <td><span class="badge bg-secondary">{{ s.protocol }}</span></td>
+                                        <td>{{ s.product }}</td>
+                                        <td>{{ s.version }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- CVE List -->
+                    <div class="mt-3 pt-2 border-top">
+                        <label class="form-label fw-bold text-secondary small d-block mb-1">Vulnerability CVEs Check</label>
+                        {% if shodan.known_vulnerabilities %}
+                            <div class="alert alert-danger p-2 mb-2" style="font-size: 0.85rem;">
+                                <i class="fa-solid fa-triangle-exclamation"></i> <strong>Vulnerabilities Found!</strong>
+                            </div>
+                            <div class="d-flex flex-wrap gap-1.5" style="max-height: 120px; overflow-y: auto;">
+                                {% for cve in shodan.known_vulnerabilities %}
+                                    <span class="badge bg-danger text-white shadow-sm px-2 py-1.5 fw-bold"><i class="fa-solid fa-skull me-1"></i> {{ cve }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="badge bg-success text-white shadow-sm px-3 py-2 fw-semibold d-inline-flex align-items-center">
+                                <i class="fa-solid fa-shield-halved me-2"></i> No Known Vulnerabilities
+                            </div>
+                        {% endif %}
+                    </div>
+
+                {% else %}
+                    <!-- Graceful Fallback if Shodan was skipped or had error -->
+                    <div class="text-center py-4 bg-light rounded border border-dashed">
+                        <i class="fa-solid fa-circle-info text-secondary fs-1 mb-2"></i>
+                        <h6 class="fw-bold text-secondary">Vulnerability Intelligence Offline</h6>
+                        <p class="text-muted small px-3 mb-0">
+                            {% if shodan and shodan.message %}
+                                {{ shodan.message }}
+                            {% else %}
+                                Shodan scanning is currently offline or unconfigured.
+                            {% endif %}
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- CARD 2: DOMAIN WHOIS REGISTRY -->
+    <div class="col-md-6">
+        <div class="card h-100 shadow-sm border-0" style="border-top: 3px solid #198754;">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-address-card text-success me-2"></i> Domain WHOIS Registry</h5>
+                <span class="badge bg-light text-success fw-semibold"><i class="fa-solid fa-key"></i> Registrar Logs</span>
+            </div>
+            <div class="card-body">
+                {% set whois = results.whois_registry_data %}
+                {% if whois and whois.status == 'Success' %}
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm align-middle text-nowrap" style="font-size: 0.9rem;">
+                            <tbody>
+                                <tr>
+                                    <th class="text-muted fw-semibold" style="width: 30%;">Registrar</th>
+                                    <td><strong class="text-dark">{{ whois.registrar }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted fw-semibold">Creation Date</th>
+                                    <td><span class="text-dark">{{ whois.creation_date }}</span></td>
+                                </tr>
+                                <tr>
+                                    <th class="text-muted fw-semibold">Expiration Date</th>
+                                    <td><span class="text-dark">{{ whois.expiration_date }}</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Nameservers list -->
+                    {% if whois.name_servers %}
+                    <div class="mt-3">
+                        <label class="form-label fw-bold text-secondary small d-block mb-1">Nameservers</label>
+                        <div class="d-flex flex-wrap gap-1.5" style="max-height: 100px; overflow-y: auto;">
+                            {% for ns in whois.name_servers %}
+                                <span class="badge bg-light text-dark border px-2 py-1.5 fs-7.5 font-monospace"><i class="fa-solid fa-server text-muted me-1"></i> {{ ns }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Emails list -->
+                    {% if whois.emails %}
+                    <div class="mt-3">
+                        <label class="form-label fw-bold text-secondary small d-block mb-1">Abuse & Registry Contacts</label>
+                        <div class="d-flex flex-wrap gap-1.5">
+                            {% for email in whois.emails %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1.5 fs-7.5"><i class="fa-solid fa-envelope me-1"></i> {{ email }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                {% else %}
+                    <!-- WHOIS Error / Skip Fallback -->
+                    <div class="text-center py-4 bg-light rounded border border-dashed">
+                        <i class="fa-solid fa-triangle-exclamation text-warning fs-1 mb-2"></i>
+                        <h6 class="fw-bold text-secondary">Registry Data Unavailable</h6>
+                        <p class="text-muted small px-3 mb-0">
+                            {% if whois and whois.message %}
+                                {{ whois.message }}
+                            {% else %}
+                                WHOIS logs could not be retrieved for the target.
+                            {% endif %}
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- CARD 3: DNS RECORDS TABBED VIEW -->
+    <div class="col-md-6">
+        <div class="card h-100 shadow-sm border-0" style="border-top: 3px solid #0dcaf0;">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-network-wired text-info me-2"></i> DNS Records Enumeration</h5>
+                <span class="badge bg-light text-info fw-semibold"><i class="fa-solid fa-shield"></i> Zone Records</span>
+            </div>
+            <div class="card-body d-flex flex-column">
+                {% set dns = results.dns_records %}
+                {% if dns and dns.status == 'Success' %}
+                    <!-- Bootstrap Tab Navs -->
+                    <ul class="nav nav-tabs nav-fill mb-3" id="dnsTabs" role="tablist" style="font-size: 0.85rem;">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active fw-bold text-dark" id="dns-a-tab" data-bs-toggle="tab" data-bs-target="#dns-a" type="button" role="tab" aria-controls="dns-a" aria-selected="true">A Records</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold text-dark" id="dns-mx-tab" data-bs-toggle="tab" data-bs-target="#dns-mx" type="button" role="tab" aria-controls="dns-mx" aria-selected="false">MX Records</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold text-dark" id="dns-ns-tab" data-bs-toggle="tab" data-bs-target="#dns-ns" type="button" role="tab" aria-controls="dns-ns" aria-selected="false">NS Records</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link fw-bold text-dark" id="dns-txt-tab" data-bs-toggle="tab" data-bs-target="#dns-txt" type="button" role="tab" aria-controls="dns-txt" aria-selected="false">TXT Records</button>
+                        </li>
+                    </ul>
+
+                    <!-- Tab Contents -->
+                    <div class="tab-content flex-grow-1" id="dnsTabsContent">
+                        <!-- A Records Tab -->
+                        <div class="tab-pane fade show active" id="dns-a" role="tabpanel" aria-labelledby="dns-a-tab">
+                            {% if dns.A %}
+                                <div class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">
+                                    {% for r in dns.A %}
+                                        <div class="list-group-item px-2 py-1.5 font-monospace border-0 bg-light rounded mb-1 text-dark fs-7.5"><i class="fa-solid fa-link text-primary me-2"></i> {{ r }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted small my-2">No active host A records found.</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- MX Records Tab -->
+                        <div class="tab-pane fade" id="dns-mx" role="tabpanel" aria-labelledby="dns-mx-tab">
+                            {% if dns.MX %}
+                                <div class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">
+                                    {% for r in dns.MX %}
+                                        <div class="list-group-item px-2 py-1.5 font-monospace border-0 bg-light rounded mb-1 text-dark fs-7.5"><i class="fa-solid fa-envelope text-success me-2"></i> {{ r }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted small my-2">No active MX mail exchange records found.</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- NS Records Tab -->
+                        <div class="tab-pane fade" id="dns-ns" role="tabpanel" aria-labelledby="dns-ns-tab">
+                            {% if dns.NS %}
+                                <div class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">
+                                    {% for r in dns.NS %}
+                                        <div class="list-group-item px-2 py-1.5 font-monospace border-0 bg-light rounded mb-1 text-dark fs-7.5"><i class="fa-solid fa-server text-info me-2"></i> {{ r }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted small my-2">No active NS zone name servers found.</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- TXT Records Tab -->
+                        <div class="tab-pane fade" id="dns-txt" role="tabpanel" aria-labelledby="dns-txt-tab">
+                            {% if dns.TXT %}
+                                <div class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">
+                                    {% for r in dns.TXT %}
+                                        <div class="list-group-item px-2 py-1.5 font-monospace border-0 bg-light rounded mb-1 text-dark fs-8 text-break"><i class="fa-solid fa-file-invoice text-secondary me-2"></i> {{ r }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted small my-2">No active TXT verification records found.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- DNS Failures Fallback -->
+                    <div class="text-center py-4 bg-light rounded border border-dashed my-auto">
+                        <i class="fa-solid fa-circle-question text-secondary fs-1 mb-2"></i>
+                        <h6 class="fw-bold text-secondary">DNS Lookup Failed</h6>
+                        <p class="text-muted small px-3 mb-0">
+                            {% if dns and dns.message %}
+                                {{ dns.message }}
+                            {% else %}
+                                Target domain could not be resolved in nameservers zone database.
+                            {% endif %}
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- CARD 4: GEOLOCATION & MAP -->
+    <div class="col-md-6">
+        <div class="card h-100 shadow-sm border-0" style="border-top: 3px solid #ffc107;">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold text-dark mb-0"><i class="fa-solid fa-location-dot text-warning me-2"></i> Physical Geolocation</h5>
+                <span class="badge bg-light text-warning fw-semibold"><i class="fa-solid fa-map"></i> Host Mapping</span>
+            </div>
+            <div class="card-body">
+                {% set geo = results.geolocation_data %}
+                {% if geo and geo.status == 'Success' %}
+                    <!-- Location Details -->
+                    <div class="mb-3">
+                        <div class="row align-items-center bg-light rounded p-2.5 g-2" style="font-size: 0.9rem;">
+                            <div class="col-6 border-end">
+                                <span class="text-muted d-block small">Country / City</span>
+                                <strong class="text-dark">{{ geo.city }}, {{ geo.country }}</strong>
+                            </div>
+                            <div class="col-6">
+                                <span class="text-muted d-block small">ISP Provider</span>
+                                <strong class="text-dark text-truncate d-block">{{ geo.isp }}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Folium Map Embed -->
+                    {% if geo.map_path %}
+                        <div class="map-container mb-1 shadow-sm" style="border-radius: 8px; overflow: hidden; border: 1px solid #dee2e6;">
+                            <iframe 
+                                width="100%" 
+                                height="300" 
+                                frameborder="0" 
+                                src="{{ geo.map_path }}"
+                                style="border: 0; display: block;">
+                            </iframe>
+                        </div>
+                        <div class="text-end text-muted mt-1" style="font-size: 0.75rem;">
+                            <i class="fa-solid fa-crosshairs"></i> Lat: {{ geo.latitude }} | Lon: {{ geo.longitude }}
+                        </div>
+                    {% endif %}
+
+                {% else %}
+                    <!-- Geolocation Failures Fallback -->
+                    <div class="text-center py-4 bg-light rounded border border-dashed">
+                        <i class="fa-solid fa-location-crosshairs text-secondary fs-1 mb-2"></i>
+                        <h6 class="fw-bold text-secondary">Physical Mapping Offline</h6>
+                        <p class="text-muted small px-3 mb-0">
+                            {% if geo and geo.message %}
+                                {{ geo.message }}
+                            {% else %}
+                                Could not resolve geographical coordinates for host IP address.
+                            {% endif %}
+                        </p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Consolidated PDF Incident Report Dispatch Panel -->
+<div class="card shadow-sm border-0 mb-4 bg-light">
+    <div class="card-body p-4 d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <span class="fs-1 text-success"><i class="fa-solid fa-file-invoice-dollar"></i></span>
+            <div>
+                <h5 class="fw-bold text-dark mb-1"><i class="fa-solid fa-file-shield text-success"></i> Audit Document Compilation</h5>
+                <p class="text-muted small mb-0">Export these passive reconnaissance results immediately into a consolidated, professional PDF incident report.</p>
+            </div>
+        </div>
+        <div>
+            <form action="{{ url_for('report') }}" method="POST">
+                <input type="hidden" name="recon_summary" value="{{ results | tojson | forceescape }}">
+                <button type="submit" class="btn btn-success py-2.5 px-4 fw-bold shadow-sm">
+                    <i class="fa-solid fa-file-pdf me-2"></i> Generate Report
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

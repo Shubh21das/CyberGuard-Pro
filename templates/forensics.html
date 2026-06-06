@@ -1,0 +1,602 @@
+{% extends 'base.html' %}
+{% block title %}Digital Forensics Auditor{% endblock %}
+
+{% block content %}
+<style>
+    .forensics-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        border-radius: 12px;
+        padding: 30px;
+        color: #ffffff;
+        margin-bottom: 25px;
+        box-shadow: 0 8px 32px rgba(15, 23, 42, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .glass-card-forensics {
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+        margin-bottom: 25px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .glass-card-forensics:hover {
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+    }
+
+    /* File Drag & Drop Upload styling */
+    .dropzone-container {
+        border: 2px dashed rgba(13, 110, 253, 0.35);
+        background-color: rgba(13, 110, 253, 0.02);
+        border-radius: 8px;
+        padding: 30px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease-in-out;
+        margin-bottom: 20px;
+        position: relative;
+    }
+
+    .dropzone-container:hover, .dropzone-container.dragover {
+        border-color: var(--bs-primary);
+        background-color: rgba(13, 110, 253, 0.05);
+    }
+
+    .dropzone-icon {
+        font-size: 40px;
+        color: rgba(13, 110, 253, 0.6);
+        margin-bottom: 12px;
+        animation: pulseIcon 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseIcon {
+        0%, 100% { transform: scale(1); opacity: 0.8; }
+        50% { transform: scale(1.08); opacity: 1; }
+    }
+
+    /* Hash copy button container */
+    .hash-field {
+        background-color: #f8f9fa;
+        font-family: var(--bs-font-monospace);
+        font-size: 12px;
+        border-left: 3px solid rgba(13, 110, 253, 0.5);
+        word-break: break-all;
+        white-space: normal;
+        height: auto !important;
+        min-height: 38px;
+        display: block;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+    }
+
+    /* Radar sweep loader */
+    #audit-loader {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.95);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        color: #ffffff;
+        backdrop-filter: blur(8px);
+    }
+
+    .radar-container {
+        position: relative;
+        width: 180px;
+        height: 180px;
+        background: radial-gradient(circle, rgba(13, 110, 253, 0.03) 0%, rgba(13, 110, 253, 0.15) 100%);
+        border: 2px solid rgba(13, 110, 253, 0.25);
+        border-radius: 50%;
+        margin-bottom: 25px;
+        overflow: hidden;
+    }
+
+    .radar-container::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        background: linear-gradient(90deg, rgba(13, 110, 253, 0.4) 0%, rgba(13, 110, 253, 0) 50%);
+        transform-origin: center;
+        animation: radarSweep 2s linear infinite;
+        border-radius: 50%;
+    }
+
+    @keyframes radarSweep {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    /* VT verdict badges */
+    .vt-verdict-card {
+        border-radius: 8px;
+        padding: 15px;
+        border: 1px solid transparent;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .vt-clean {
+        background-color: rgba(25, 135, 84, 0.05);
+        border-color: rgba(25, 135, 84, 0.2);
+        color: #198754;
+    }
+
+    .vt-suspicious {
+        background-color: rgba(255, 193, 7, 0.05);
+        border-color: rgba(255, 193, 7, 0.25);
+        color: #b58200;
+    }
+
+    .vt-malicious {
+        background-color: rgba(220, 53, 69, 0.05);
+        border-color: rgba(220, 53, 69, 0.2);
+        color: #dc3545;
+        animation: threatPulse 2s infinite;
+    }
+
+    @keyframes threatPulse {
+        0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.25); }
+        70% { box-shadow: 0 0 0 8px rgba(220, 53, 69, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+    }
+
+    /* Terminal logs display */
+    .terminal-display {
+        background-color: #0f172a;
+        color: #38bdf8;
+        font-family: var(--bs-font-monospace);
+        padding: 15px;
+        border-radius: 6px;
+        max-height: 250px;
+        overflow-y: auto;
+        font-size: 13px;
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Forensics Header Panel -->
+    <div class="forensics-header d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <h1 class="m-0 fs-3"><i class="fa-solid fa-magnifying-glass-location me-2 text-warning"></i> Digital Forensics Auditor</h1>
+            <p class="m-0 opacity-75 mt-1">Acquire structural EXIF profiles, cryptographic markers, embedded IOC ASCII strings, and file partition tables.</p>
+        </div>
+        <div>
+            <span class="badge bg-dark-subtle border border-light-subtle py-2 px-3 fw-semibold">
+                <i class="fa-solid fa-user-shield text-warning me-1"></i> Core Integrity Inspection
+            </span>
+        </div>
+    </div>
+
+    <!-- Upload Panel Card -->
+    <div class="glass-card-forensics">
+        <form method="POST" enctype="multipart/form-data" id="forensics-form" onsubmit="showLoader()">
+            <!-- Drag & Drop container area -->
+            <div class="dropzone-container" id="dropzone" onclick="triggerFileInput()">
+                <div class="dropzone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                <h5 class="fw-bold mb-1">Drag and Drop your Forensic Target File here</h5>
+                <p class="text-muted fs-13 m-0">Supports images, documents, and archives up to 50MB (PNG, JPG, PDF, TXT, DOCX, ZIP etc.)</p>
+                <span class="btn btn-sm btn-outline-primary mt-3 px-3">Browse Files</span>
+                <input type="file" id="file" name="file" style="display: none;" onchange="updateFileLabel(this)" required>
+            </div>
+            <div id="file-selected-badge" class="mb-3 d-none text-center">
+                <span class="badge bg-primary-subtle border border-primary text-primary px-3 py-2 fs-13">
+                    <i class="fa-solid fa-file-shield me-1"></i> Target Selected: <strong id="selected-filename">None</strong>
+                </span>
+            </div>
+
+            <!-- Ethical Use Disclaimer Callout -->
+            <div class="d-flex align-items-start bg-danger-subtle bg-opacity-10 border border-danger border-opacity-10 p-3 rounded mb-3">
+                <i class="fa-solid fa-gavel me-2 text-danger mt-1"></i>
+                <div class="fs-12 text-muted">
+                    <strong>Ethical & Legal Compliance Notice:</strong> Only analyze files you own or have explicit authorization to analyze. Unauthorized processing of systems files or staging assets violates privacy statutes.
+                </div>
+            </div>
+
+            <!-- Pre-Execution Authorization Checkbox -->
+            <div class="form-check mb-4">
+                <input class="form-check-input" type="checkbox" id="ethical_check" required>
+                <label class="form-check-input-label text-muted fs-13" for="ethical_check">
+                    I acknowledge that I own or have legal authorization to perform diagnostics and forensics analysis on this uploaded file.
+                </label>
+            </div>
+
+            <!-- Submit Auditor Button -->
+            <button type="submit" class="btn btn-primary px-4 fw-bold">
+                <i class="fa-solid fa-magnifying-glass-chart me-1"></i> Run Forensic Scan
+            </button>
+        </form>
+    </div>
+
+    <!-- Results Block (If populated) -->
+    {% if results %}
+    
+    <!-- Privacy Risk Analysis and Classification (GPS and Personal info parsing) -->
+    {% set ns = namespace(gps=false, personal=false, gps_keys=[], personal_keys=[]) %}
+    {% for key, val in results.metadata.items() %}
+        {% if 'gps' in key|lower or 'latitude' in key|lower or 'longitude' in key|lower or 'position' in key|lower %}
+            {% set ns.gps = true %}
+            {% set _ = ns.gps_keys.append(key) %}
+        {% endif %}
+        {% if 'author' in key|lower or 'creator' in key|lower or 'owner' in key|lower or 'artist' in key|lower or 'copyright' in key|lower or 'profile' in key|lower %}
+            {% set ns.personal = true %}
+            {% set _ = ns.personal_keys.append(key) %}
+        {% endif %}
+    {% endfor %}
+
+    <!-- Privacy Telemetry Alert Callout -->
+    {% if ns.gps or ns.personal %}
+    <div class="alert alert-warning border-warning-subtle d-flex align-items-start gap-3 p-4 mb-4 rounded-3 shadow-sm" style="background: rgba(255, 193, 7, 0.04);">
+        <div class="fs-2 text-warning"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div>
+            <h5 class="alert-heading fw-bold mb-1"><i class="fa-solid fa-user-shield me-1"></i> Privacy Indicators Found</h5>
+            <p class="m-0 fs-13 text-muted">
+                {% if ns.gps and ns.personal %}
+                    Critical privacy indicators found! This file contains embedded <strong>GPS coordinates</strong> (representing physical capture locations) and <strong>personal markers (Author/Creator/Owner EXIF tags)</strong>.
+                {% elif ns.gps %}
+                    Physical telemetry exposure! This file exposes embedded <strong>GPS coordinates</strong> pointing to the exact geographical capture location.
+                {% else %}
+                    Identity metadata exposure! This file contains <strong>personal owner, creator, or software tags</strong> which can identify the operator or workstation.
+                {% endif %}
+            </p>
+            <span class="badge bg-warning text-dark mt-2 fw-semibold"><i class="fa-solid fa-shield-halved me-1"></i> Privacy Exposure Alert</span>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-success border-success-subtle d-flex align-items-start gap-3 p-4 mb-4 rounded-3 shadow-sm" style="background: rgba(25, 135, 84, 0.04);">
+        <div class="fs-2 text-success"><i class="fa-solid fa-circle-check"></i></div>
+        <div>
+            <h5 class="alert-heading fw-bold mb-1"><i class="fa-solid fa-shield-halved me-1"></i> Privacy Exposure Analysis Complete</h5>
+            <p class="m-0 fs-13 text-muted">No geographical coordinate records or personal ownership descriptors are present in the EXIF markers of this file.</p>
+            <span class="badge bg-success mt-2 fw-semibold"><i class="fa-solid fa-lock me-1"></i> Secured Privacy Level</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Sidebar Columns: Hashes & VirusTotal reputation -->
+        <div class="col-lg-4">
+            <!-- File Info / Hashes card -->
+            <div class="glass-card-forensics">
+                <h5 class="fw-bold mb-3 border-bottom pb-2 text-primary"><i class="fa-solid fa-file-invoice me-1"></i> File Identification</h5>
+                
+                <div class="mb-3">
+                    <span class="text-muted fs-11 fw-bold text-uppercase d-block">Uploaded File Name</span>
+                    <span class="fw-bold text-break text-dark">{{ results.filename }}</span>
+                </div>
+
+                <div class="mb-3">
+                    <span class="text-muted fs-11 fw-bold text-uppercase d-block">Physical Size</span>
+                    <span class="fw-semibold text-dark">{{ results.file_size }}</span>
+                </div>
+
+                <!-- Section 2: Monospace cryptographic hashes with copy-to-clipboard buttons -->
+                <div class="mb-3">
+                    <label class="form-label text-muted fs-11 fw-bold text-uppercase mb-1">MD5 Checksum</label>
+                    <div class="input-group">
+                        <div id="hash-md5" class="form-control hash-field border-end-0 py-1">{{ results.hashes.md5 }}</div>
+                        <button class="btn btn-sm btn-outline-secondary px-3 border" type="button" onclick="copyText('hash-md5', this)">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted fs-11 fw-bold text-uppercase mb-1">SHA-1 Checksum</label>
+                    <div class="input-group">
+                        <div id="hash-sha1" class="form-control hash-field border-end-0 py-1">{{ results.hashes.sha1 }}</div>
+                        <button class="btn btn-sm btn-outline-secondary px-3 border" type="button" onclick="copyText('hash-sha1', this)">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label text-muted fs-11 fw-bold text-uppercase mb-1">SHA-256 Checksum</label>
+                    <div class="input-group">
+                        <div id="hash-sha256" class="form-control hash-field border-end-0 py-1">{{ results.hashes.sha256 }}</div>
+                        <button class="btn btn-sm btn-outline-secondary px-3 border" type="button" onclick="copyText('hash-sha256', this)">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 3: VirusTotal reputation feedback badges -->
+            <div class="glass-card-forensics">
+                <h5 class="fw-bold mb-3 border-bottom pb-2 text-primary"><i class="fa-solid fa-virus-covid me-1"></i> Reputation Verdict</h5>
+                
+                {% set vt = results.virustotal %}
+                {% if vt.verdict == 'CLEAN' %}
+                    <div class="vt-verdict-card vt-clean">
+                        <div class="fs-1"><i class="fa-solid fa-shield-virus"></i></div>
+                        <h4 class="fw-bold m-0 mt-2">CLEAN PROFILE</h4>
+                        <div class="fs-14 fw-semibold mt-1">VirusTotal Detection Rate: {{ vt.ratio }}</div>
+                    </div>
+                {% elif vt.verdict == 'SUSPICIOUS' %}
+                    <div class="vt-verdict-card vt-suspicious">
+                        <div class="fs-1"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <h4 class="fw-bold m-0 mt-2">SUSPICIOUS FILE</h4>
+                        <div class="fs-14 fw-semibold mt-1">VirusTotal Detection Rate: {{ vt.ratio }}</div>
+                    </div>
+                {% elif vt.verdict == 'MALICIOUS' %}
+                    <div class="vt-verdict-card vt-malicious">
+                        <div class="fs-1"><i class="fa-solid fa-biohazard"></i></div>
+                        <h4 class="fw-bold m-0 mt-2">MALICIOUS SIGNATURE</h4>
+                        <div class="fs-14 fw-semibold mt-1">VirusTotal Detection Rate: {{ vt.ratio }}</div>
+                    </div>
+                {% else %}
+                    <div class="vt-verdict-card bg-light border-secondary-subtle text-muted text-center">
+                        <div class="fs-1"><i class="fa-solid fa-circle-question"></i></div>
+                        <h4 class="fw-bold m-0 mt-2">{{ vt.verdict }}</h4>
+                        <div class="fs-13 mt-1 text-break">{{ vt.error or 'Reputation signature unregistered' }}</div>
+                    </div>
+                {% endif %}
+
+                <!-- VT Progress bar -->
+                {% if vt.success and vt.stats %}
+                    {% set mal_count = vt.stats.malicious | default(0) %}
+                    {% set susp_count = vt.stats.suspicious | default(0) %}
+                    {% set clean_count = vt.stats.harmless | default(0) + vt.stats.undetected | default(0) %}
+                    {% set total_count = mal_count + susp_count + clean_count %}
+                    
+                    <div class="mt-3">
+                        <span class="fs-12 text-muted fw-bold d-block mb-1">VirusTotal Engines Breakdown</span>
+                        <div class="progress" style="height: 10px;">
+                            <div class="progress-bar bg-danger" role="progressbar" style="width: {{ (mal_count / total_count * 100)|round if total_count > 0 else 0 }}%" aria-valuenow="{{ mal_count }}" aria-valuemin="0" aria-valuemax="{{ total_count }}"></div>
+                            <div class="progress-bar bg-warning" role="progressbar" style="width: {{ (susp_count / total_count * 100)|round if total_count > 0 else 0 }}%" aria-valuenow="{{ susp_count }}" aria-valuemin="0" aria-valuemax="{{ total_count }}"></div>
+                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ (clean_count / total_count * 100)|round if total_count > 0 else 0 }}%" aria-valuenow="{{ clean_count }}" aria-valuemin="0" aria-valuemax="{{ total_count }}"></div>
+                        </div>
+                        <div class="d-flex justify-content-between fs-11 text-muted mt-1">
+                            <span>Malicious: {{ mal_count }}</span>
+                            <span>Suspicious: {{ susp_count }}</span>
+                            <span>Safe: {{ clean_count }}</span>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Main Column: Metadata, Strings analysis, and Sleuth Kit partition structure -->
+        <div class="col-lg-8">
+            <!-- Section 1: Exif / Metadata scrollable table -->
+            <div class="glass-card-forensics">
+                <h5 class="fw-bold mb-3 text-primary"><i class="fa-solid fa-list-check me-1"></i> File Structural Metadata & EXIF Tags</h5>
+                
+                <div class="table-responsive" style="max-height: 380px; overflow-y: auto; border: 1px solid rgba(0,0,0,0.08); border-radius: 8px;">
+                    <table class="table table-hover table-striped m-0">
+                        <thead class="sticky-top bg-light shadow-sm">
+                            <tr>
+                                <th style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">EXIF / Metadata Tag</th>
+                                <th style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Captured Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for key, val in results.metadata.items() %}
+                                {% set is_gps = 'gps' in key|lower or 'latitude' in key|lower or 'longitude' in key|lower or 'position' in key|lower %}
+                                <tr {% if is_gps %}class="table-danger fw-semibold text-danger" style="background-color: rgba(220, 53, 69, 0.08) !important;"{% endif %}>
+                                    <td class="align-middle">
+                                        {% if is_gps %}<i class="fa-solid fa-location-dot me-1 text-danger"></i>{% endif %}
+                                        {{ key }}
+                                    </td>
+                                    <td class="font-monospace text-break align-middle" style="font-size: 13px;">{{ val }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Section 4: Printable Strings Extraction (URLs, Emails, IPs) as tab panels -->
+            <div class="glass-card-forensics">
+                <h5 class="fw-bold mb-3 text-primary"><i class="fa-solid fa-quote-left me-1"></i> Binary Printable Strings Extraction (IOCs)</h5>
+                <p class="fs-12 text-muted mb-3">Extracted from printable ASCII sequences (minimum length 6). Matches indicators of compromise.</p>
+                
+                <!-- Tab headers -->
+                <ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active btn-sm px-3" id="pills-urls-tab" data-bs-toggle="pill" data-bs-target="#pills-urls" type="button" role="tab">
+                            <i class="fa-solid fa-link me-1"></i> URLs <span class="badge bg-secondary ms-1">{{ results.strings.urls | length }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link btn-sm px-3" id="pills-emails-tab" data-bs-toggle="pill" data-bs-target="#pills-emails" type="button" role="tab">
+                            <i class="fa-solid fa-envelope me-1"></i> Emails <span class="badge bg-secondary ms-1">{{ results.strings.emails | length }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link btn-sm px-3" id="pills-ips-tab" data-bs-toggle="pill" data-bs-target="#pills-ips" type="button" role="tab">
+                            <i class="fa-solid fa-network-wired me-1"></i> IP Addresses <span class="badge bg-secondary ms-1">{{ results.strings.ips | length }}</span>
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tab contents -->
+                <div class="tab-content border p-3 rounded bg-light" id="pills-tabContent">
+                    <!-- URL IOC list -->
+                    <div class="tab-pane fade show active" id="pills-urls" role="tabpanel">
+                        {% if results.strings.urls %}
+                            <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                                <table class="table table-sm m-0">
+                                    <tbody>
+                                        {% for url in results.strings.urls %}
+                                            <tr>
+                                                <td class="font-monospace text-break fs-13 text-primary">{{ url }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-muted text-center py-4 fs-13">
+                                <i class="fa-solid fa-link-slash d-block fs-3 opacity-50 mb-2"></i>
+                                No active URLs found inside printable ASCII block arrays.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Email IOC list -->
+                    <div class="tab-pane fade" id="pills-emails" role="tabpanel">
+                        {% if results.strings.emails %}
+                            <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                                <table class="table table-sm m-0">
+                                    <tbody>
+                                        {% for email in results.strings.emails %}
+                                            <tr>
+                                                <td class="font-monospace text-break fs-13 text-secondary">{{ email }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-muted text-center py-4 fs-13">
+                                <i class="fa-solid fa-envelope-open d-block fs-3 opacity-50 mb-2"></i>
+                                No system contact emails located in the binary segments.
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- IP IOC list -->
+                    <div class="tab-pane fade" id="pills-ips" role="tabpanel">
+                        {% if results.strings.ips %}
+                            <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                                <table class="table table-sm m-0">
+                                    <tbody>
+                                        {% for ip in results.strings.ips %}
+                                            <tr>
+                                                <td class="font-monospace text-break fs-13 text-danger"><i class="fa-solid fa-server me-1"></i> {{ ip }}</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-muted text-center py-4 fs-13">
+                                <i class="fa-solid fa-diagram-project d-block fs-3 opacity-50 mb-2"></i>
+                                No network IP addresses detected in ASCII printable logs.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section 5: Sleuth Kit image analytics -->
+            <div class="glass-card-forensics">
+                <h5 class="fw-bold mb-3 text-primary"><i class="fa-solid fa-sd-card me-1"></i> Disk Image Partition Structures (Sleuth Kit)</h5>
+                
+                {% set sk = results.sleuthkit %}
+                {% if sk.sleuthkit_installed %}
+                    <p class="fs-12 text-muted mb-2">Recovered inode profiles and structural directory mappings for raw image files.</p>
+                    
+                    <div class="mb-3">
+                        <span class="fs-11 fw-bold text-muted text-uppercase mb-1 d-block">Sleuth Kit ils Output (Inode Metadata Table)</span>
+                        {% if sk.ils_output %}
+                            <div class="terminal-display">{{ sk.ils_output | join('\n') }}</div>
+                        {% else %}
+                            <div class="text-center bg-dark text-white-50 p-3 rounded font-monospace fs-12 border">No ils records parsed or empty inode table.</div>
+                        {% endif %}
+                    </div>
+
+                    <div>
+                        <span class="fs-11 fw-bold text-muted text-uppercase mb-1 d-block">Sleuth Kit fls Output (Recursive Files Listing)</span>
+                        {% if sk.fls_output %}
+                            <div class="terminal-display">{{ sk.fls_output | join('\n') }}</div>
+                        {% else %}
+                            <div class="text-center bg-dark text-white-50 p-3 rounded font-monospace fs-12 border">No fls files or folders cataloged in partition.</div>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="p-3 bg-light border rounded d-flex align-items-start gap-2">
+                        <i class="fa-solid fa-circle-exclamation text-secondary mt-1"></i>
+                        <span class="fs-13 text-muted">
+                            <strong>The Sleuth Kit (ils, fls) is not pre-installed on this host environment.</strong> Partition block diagnostics bypassed gracefully. If auditing raw physical disks or partition blocks, install Sleuth Kit on the operator workstation.
+                        </span>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Diagnostics radar sweep loader -->
+<div id="audit-loader">
+    <div class="radar-container"></div>
+    <h3 class="fw-bold m-0 text-white">Reconstructing File DNA...</h3>
+    <p class="opacity-75 fs-14 mt-2 text-white text-center px-4">Processing cryptographic blocks, extracting EXIF indices, and parsing ASCII indicators...</p>
+</div>
+
+<!-- Inline Javascript Utilities -->
+<script>
+    // Copy hash helper with clipboard write APIs
+    function copyText(id, btn) {
+        var text = document.getElementById(id).innerText;
+        navigator.clipboard.writeText(text).then(function() {
+            var origHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+            btn.className = "btn btn-sm btn-success px-3 border border-success";
+            setTimeout(function() {
+                btn.innerHTML = origHTML;
+                btn.className = "btn btn-sm btn-outline-secondary px-3 border";
+            }, 1500);
+        });
+    }
+
+    // Trigger loader on scan start
+    function showLoader() {
+        document.getElementById('audit-loader').style.display = 'flex';
+    }
+
+    // Custom Drag & Drop listeners
+    var dropzone = document.getElementById('dropzone');
+    var fileInput = document.getElementById('file');
+    var badge = document.getElementById('file-selected-badge');
+    var filenameLabel = document.getElementById('selected-filename');
+
+    function triggerFileInput() {
+        fileInput.click();
+    }
+
+    function updateFileLabel(input) {
+        if (input.files && input.files.length > 0) {
+            badge.classList.remove('d-none');
+            filenameLabel.innerText = input.files[0].name + " (" + (input.files[0].size / 1024).toFixed(1) + " KB)";
+        }
+    }
+
+    // Drag-over styling shifts
+    dropzone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            updateFileLabel(fileInput);
+        }
+    });
+</script>
+{% endblock %}

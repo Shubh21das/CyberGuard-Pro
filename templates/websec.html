@@ -1,0 +1,483 @@
+{% extends 'base.html' %}
+{% block title %}Web Security Auditor{% endblock %}
+
+{% block content %}
+<style>
+    .websec-header {
+        background: linear-gradient(135deg, #1e1b4b 0%, #311042 100%);
+        border-radius: 12px;
+        padding: 30px;
+        color: #ffffff;
+        margin-bottom: 25px;
+        box-shadow: 0 8px 32px rgba(49, 16, 66, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .glass-card-websec {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+        margin-bottom: 25px;
+    }
+
+    /* Overall Risk Score Badge CSS */
+    .risk-badge-card {
+        border-radius: 12px;
+        padding: 25px;
+        text-align: center;
+        margin-bottom: 25px;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+        border: 1px solid transparent;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .risk-low {
+        background: linear-gradient(135deg, rgba(25, 135, 84, 0.05) 0%, rgba(25, 135, 84, 0.12) 100%);
+        color: #198754;
+        border-color: rgba(25, 135, 84, 0.2);
+    }
+
+    .risk-medium {
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.05) 0%, rgba(255, 193, 7, 0.12) 100%);
+        color: #b58200;
+        border-color: rgba(255, 193, 7, 0.25);
+    }
+
+    .risk-high {
+        background: linear-gradient(135deg, rgba(220, 53, 69, 0.05) 0%, rgba(220, 53, 69, 0.12) 100%);
+        color: #dc3545;
+        border-color: rgba(220, 53, 69, 0.2);
+    }
+
+    .risk-critical {
+        background: linear-gradient(135deg, rgba(111, 66, 193, 0.05) 0%, rgba(111, 66, 193, 0.12) 100%);
+        color: #6f42c1;
+        border-color: rgba(111, 66, 193, 0.25);
+        animation: criticalPulse 2.5s infinite;
+    }
+
+    @keyframes criticalPulse {
+        0% { box-shadow: 0 0 0 0 rgba(111, 66, 193, 0.2); }
+        70% { box-shadow: 0 0 0 10px rgba(111, 66, 193, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(111, 66, 193, 0); }
+    }
+
+    /* Radar sweep animation loader */
+    #audit-loader {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.9);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        color: #ffffff;
+    }
+
+    .radar-container {
+        position: relative;
+        width: 180px;
+        height: 180px;
+        background: radial-gradient(circle, rgba(13, 110, 253, 0.03) 0%, rgba(13, 110, 253, 0.15) 100%);
+        border: 2px solid rgba(13, 110, 253, 0.2);
+        border-radius: 50%;
+        margin-bottom: 25px;
+        overflow: hidden;
+    }
+
+    .radar-container::after {
+        content: '';
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        background: linear-gradient(90deg, rgba(13, 110, 253, 0.4) 0%, rgba(13, 110, 253, 0) 50%);
+        transform-origin: center;
+        animation: radarSweep 2s linear infinite;
+        border-radius: 50%;
+    }
+
+    @keyframes radarSweep {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .badge-checklist {
+        font-size: 11px;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-weight: 700;
+    }
+
+    /* Table visual fixes */
+    .table-websec th {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: var(--text-muted);
+        letter-spacing: 0.5px;
+        padding: 12px 10px;
+    }
+
+    .table-websec td {
+        font-size: 14px;
+        padding: 12px 10px;
+    }
+</style>
+
+<div class="container-fluid py-4">
+    <!-- Audit Header Panel -->
+    <div class="websec-header d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <h1 class="m-0 fs-3"><i class="fa-solid fa-code me-2 text-warning"></i> Web Security Auditor</h1>
+            <p class="m-0 opacity-75 mt-1">Audit secure landing page headers, SSL handshake encryptions, cookie leakages, and injection reflections.</p>
+        </div>
+        <div>
+            <span class="badge bg-dark-subtle border border-light-subtle py-2 px-3 fw-semibold">
+                <i class="fa-solid fa-user-shield text-warning me-1"></i> Active Compliance Scanning
+            </span>
+        </div>
+    </div>
+
+    <!-- Target Form Input Card -->
+    <div class="glass-card-websec">
+        <form method="POST" id="websec-form" onsubmit="showLoader()">
+            <div class="mb-3">
+                <label class="form-label fw-bold" for="target_url">Target Authorization Endpoint URL</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light text-muted"><i class="fa-solid fa-link"></i></span>
+                    <input type="url" id="target_url" name="url" class="form-control" 
+                           placeholder="e.g. https://www.google.com" required>
+                    <button type="submit" class="btn btn-primary px-4 fw-bold">
+                        <i class="fa-solid fa-shield-halved me-1"></i> Run Security Audit
+                    </button>
+                </div>
+                <div class="form-text text-muted"><i class="fa-solid fa-circle-info me-1"></i> Ensure you are authorized to run security diagnostics on the target host address.</div>
+            </div>
+        </form>
+    </div>
+
+    {% if results %}
+    <div class="row">
+        <!-- Sidebar Risk Telemetry -->
+        <div class="col-lg-4">
+            <!-- Overall Risk Shield Badge -->
+            {% if results.sqli.vulnerable or results.xss.vulnerable %}
+            <div class="risk-badge-card risk-critical">
+                <div class="display-3"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <h2 class="m-0 mt-2 fw-bold">CRITICAL RISK</h2>
+                <div class="fs-15 mt-1 opacity-75">Active Vulnerabilities Found</div>
+                <div class="fs-48 fw-bold mt-2">{{ results.risk_score }} / 100</div>
+                <p class="m-0 mt-2 fs-12">Target endpoint is exposed to code reflection injection vectors!</p>
+            </div>
+            {% elif results.risk_score >= 80 %}
+            <div class="risk-badge-card risk-low">
+                <div class="display-3"><i class="fa-solid fa-shield-halved"></i></div>
+                <h2 class="m-0 mt-2 fw-bold">LOW RISK</h2>
+                <div class="fs-15 mt-1 opacity-75">Secure Configuration</div>
+                <div class="fs-48 fw-bold mt-2">{{ results.risk_score }} / 100</div>
+                <p class="m-0 mt-2 fs-12">Headers, TLS configurations, and cookie policies adhere to standard safeguards.</p>
+            </div>
+            {% elif results.risk_score >= 50 %}
+            <div class="risk-badge-card risk-medium">
+                <div class="display-3"><i class="fa-solid fa-circle-exclamation"></i></div>
+                <h2 class="m-0 mt-2 fw-bold">MEDIUM RISK</h2>
+                <div class="fs-15 mt-1 opacity-75">Remediation Suggested</div>
+                <div class="fs-48 fw-bold mt-2">{{ results.risk_score }} / 100</div>
+                <p class="m-0 mt-2 fs-12">Some secure headers or cookie attributes are missing or misconfigured.</p>
+            </div>
+            {% else %}
+            <div class="risk-badge-card risk-high">
+                <div class="display-3"><i class="fa-solid fa-radiation"></i></div>
+                <h2 class="m-0 mt-2 fw-bold">HIGH RISK</h2>
+                <div class="fs-15 mt-1 opacity-75">Security Flaws Found</div>
+                <div class="fs-48 fw-bold mt-2">{{ results.risk_score }} / 100</div>
+                <p class="m-0 mt-2 fs-12">Significant secure header policies or TLS features are absent.</p>
+            </div>
+            {% endif %}
+
+            <!-- Section 2: SSL Certificate Status -->
+            <div class="glass-card-websec">
+                <h4 class="mb-3 text-primary"><i class="fa-solid fa-lock me-2"></i> TLS / SSL Certificate</h4>
+                {% if results.ssl.success %}
+                <div class="p-3 bg-light rounded border mb-3">
+                    <span class="d-block fs-11 text-muted fw-bold text-uppercase">Signature Authority Issuer</span>
+                    <span class="fs-14 fw-bold text-dark d-block mt-1"><i class="fa-solid fa-award text-success me-1"></i> {{ results.ssl.issuer }}</span>
+                </div>
+                <div class="p-3 bg-light rounded border mb-3">
+                    <span class="d-block fs-11 text-muted fw-bold text-uppercase">Certificate Validity Period</span>
+                    <span class="fs-14 fw-semibold text-dark d-block mt-1"><i class="fa-solid fa-calendar-days text-muted me-1"></i> {{ results.ssl.valid_until }}</span>
+                </div>
+                <div class="p-3 text-center rounded border {% if results.ssl.days_remaining < 30 %}bg-danger-subtle text-danger border-danger-subtle{% else %}bg-success-subtle text-success border-success-subtle{% endif %}">
+                    <span class="d-block fs-32 fw-bold">{{ results.ssl.days_remaining }}</span>
+                    <span class="fs-11 fw-bold text-uppercase">Days Life Remaining</span>
+                </div>
+                {% else %}
+                <div class="alert alert-danger m-0 border rounded">
+                    <i class="fa-solid fa-triangle-exclamation me-1"></i> **SSL Scan Error**: {{ results.ssl.error }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Detailed Auditor Reports Section -->
+        <div class="col-lg-8">
+            <!-- Section 1: Security Headers -->
+            <div class="glass-card-websec">
+                <h4 class="mb-4 text-primary"><i class="fa-solid fa-lines-leaning me-2"></i> Section 1: HTTP Security Response Headers</h4>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle table-websec m-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Header Parameter</th>
+                                <th>Status</th>
+                                <th>Active Value</th>
+                                <th>Remediation Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for header, data in results.headers.items() %}
+                            <tr>
+                                <td class="fw-bold">{{ header }}</td>
+                                <td>
+                                    {% if data.status == 'present' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle badge-checklist">
+                                        <i class="fa-solid fa-circle-check"></i> PASS
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle badge-checklist">
+                                        <i class="fa-solid fa-circle-xmark"></i> FAIL
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="font-monospace fs-12 text-muted text-truncate" style="max-width: 160px;" title="{{ data.value or 'None Set' }}">
+                                    {{ data.value or 'None Set' }}
+                                </td>
+                                <td class="fs-12 text-secondary">
+                                    {% if header == 'Content-Security-Policy' %}
+                                        Restrict resource source origins (prevents XSS).
+                                    {% elif header == 'X-Frame-Options' %}
+                                        Prevent framing clickjacking exploits.
+                                    {% elif header == 'X-Content-Type-Options' %}
+                                        Set `nosniff` flag to avoid MIME sniffs.
+                                    {% elif header == 'Strict-Transport-Security' %}
+                                        Force strictly HTTPS connections.
+                                    {% elif header == 'Referrer-Policy' %}
+                                        Limit path disclosure leaks.
+                                    {% elif header == 'Permissions-Policy' %}
+                                        Restrict hardware APIs (Camera, Location).
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Section 3: Cookie Security Policies -->
+            <div class="glass-card-websec">
+                <h4 class="mb-4 text-primary"><i class="fa-solid fa-cookie-bite me-2"></i> Section 2: Session Cookies Flags</h4>
+                {% if results.cookies %}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle table-websec m-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Cookie Name</th>
+                                <th>Domain Scope</th>
+                                <th>HttpOnly</th>
+                                <th>Secure</th>
+                                <th>SameSite</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cookie in results.cookies %}
+                            <tr>
+                                <td class="fw-bold font-monospace">{{ cookie.name }}</td>
+                                <td class="fs-12 text-muted">{{ cookie.domain }}</td>
+                                <td>
+                                    {% if cookie.httponly %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-circle-check"></i> Active</span>
+                                    {% else %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"><i class="fa-solid fa-circle-xmark"></i> Missing</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if cookie.secure %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fa-solid fa-circle-check"></i> Active</span>
+                                    {% else %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1"><i class="fa-solid fa-circle-xmark"></i> Missing</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-dark-subtle text-dark border px-2 py-1 font-monospace">{{ cookie.samesite }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 bg-light rounded text-center text-muted border">
+                    <i class="fa-solid fa-cookie fa-2x mb-2 opacity-50"></i>
+                    <p class="m-0 fs-14">No session storage cookies returned by the landing query. Standard cookie safety audits skipped.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Section 4: Injection Vulnerability Tests -->
+            <div class="glass-card-websec">
+                <h4 class="mb-4 text-primary"><i class="fa-solid fa-bug me-2"></i> Section 3: Injection Exploit Reflection Tests</h4>
+                <div class="row g-3">
+                    <!-- SQL Injection -->
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <span class="d-block fs-11 text-muted fw-bold text-uppercase">SQL Injection (SQLi) Audit</span>
+                            {% if results.sqli.vulnerable %}
+                            <span class="badge bg-danger mt-2"><i class="fa-solid fa-triangle-exclamation me-1"></i> Vulnerable</span>
+                            <div class="font-monospace fs-11 text-danger border border-danger-subtle p-2 rounded bg-danger-subtle mt-2 text-break">
+                                {{ results.sqli.evidence }}
+                            </div>
+                            {% else %}
+                            <span class="badge bg-success mt-2"><i class="fa-solid fa-circle-check me-1"></i> Not Vulnerable</span>
+                            <p class="m-0 mt-2 fs-12 text-muted text-break">{{ results.sqli.evidence }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <!-- Cross-Site Scripting -->
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <span class="d-block fs-11 text-muted fw-bold text-uppercase">Cross-Site Scripting (XSS) Reflection</span>
+                            {% if results.xss.vulnerable %}
+                            <span class="badge bg-danger mt-2"><i class="fa-solid fa-triangle-exclamation me-1"></i> Vulnerable</span>
+                            <div class="font-monospace fs-11 text-danger border border-danger-subtle p-2 rounded bg-danger-subtle mt-2 text-break">
+                                {{ results.xss.evidence }}
+                            </div>
+                            {% else %}
+                            <span class="badge bg-success mt-2"><i class="fa-solid fa-circle-check me-1"></i> Not Vulnerable</span>
+                            <p class="m-0 mt-2 fs-12 text-muted text-break">{{ results.xss.evidence }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Compliance Recommendations based on Scans -->
+            <div class="glass-card-websec">
+                <h4 class="mb-4 text-dark"><i class="fa-solid fa-circle-nodes text-primary me-2"></i> Section 4: Prioritized Compliance Remediation Recommendations</h4>
+                <ul class="list-group list-group-flush" id="recommendations-list">
+                    {% set count = 0 %}
+                    
+                    {% if results.sqli.vulnerable %}
+                    <li class="list-group-item d-flex align-items-start gap-3 py-3 px-0 border-0">
+                        <span class="badge bg-danger p-2"><i class="fa-solid fa-circle-exclamation fs-15"></i></span>
+                        <div>
+                            <h6 class="m-0 fw-bold text-danger">Implement Parameterized Queries (SQLi Remediation)</h6>
+                            <p class="m-0 fs-12 text-muted mt-1">Prevent dynamic SQL string execution by enforcing pre-compiled parameterized queries or Object Relational Mappings (ORM) to sanitize user variables.</p>
+                        </div>
+                    </li>
+                    {% endif %}
+
+                    {% if results.xss.vulnerable %}
+                    <li class="list-group-item d-flex align-items-start gap-3 py-3 px-0 border-0">
+                        <span class="badge bg-danger p-2"><i class="fa-solid fa-circle-exclamation fs-15"></i></span>
+                        <div>
+                            <h6 class="m-0 fw-bold text-danger">Enforce HTML Context-Aware Output Encoding (XSS Remediation)</h6>
+                            <p class="m-0 fs-12 text-muted mt-1">Encode all reflected parameters before rendering them to the screen (using HTML escaping functions) to neutralize injected script tags.</p>
+                        </div>
+                    </li>
+                    {% endif %}
+
+                    {% for header, data in results.headers.items() %}
+                        {% if data.status == 'missing' %}
+                        <li class="list-group-item d-flex align-items-start gap-3 py-3 px-0 border-0">
+                            <span class="badge bg-warning text-dark p-2"><i class="fa-solid fa-triangle-exclamation fs-15"></i></span>
+                            <div>
+                                <h6 class="m-0 fw-bold text-dark">Add Secure Headers Policies: {{ header }}</h6>
+                                <p class="m-0 fs-12 text-muted mt-1">
+                                    {% if header == 'Content-Security-Policy' %}
+                                        Enforce custom `Content-Security-Policy` config headers to restrict resource loading scopes.
+                                    {% elif header == 'X-Frame-Options' %}
+                                        Configure `X-Frame-Options: SAMEORIGIN` inside host proxy routes to block framing clickjack attacks.
+                                    {% elif header == 'X-Content-Type-Options' %}
+                                        Append `X-Content-Type-Options: nosniff` header directives to protect browsers from executing mime sniffs.
+                                    {% elif header == 'Strict-Transport-Security' %}
+                                        Deploy `Strict-Transport-Security: max-age=63072000` headers to mandate SSL/TLS connections globally.
+                                    {% else %}
+                                        Configure secure HTTP header responses for {{ header }} parameters.
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% for cookie in results.cookies %}
+                        {% if not cookie.httponly or not cookie.secure %}
+                        <li class="list-group-item d-flex align-items-start gap-3 py-3 px-0 border-0">
+                            <span class="badge bg-secondary text-dark p-2"><i class="fa-solid fa-cookie-bite fs-15"></i></span>
+                            <div>
+                                <h6 class="m-0 fw-bold text-dark">Enforce Session Flag Rules on Cookie: '{{ cookie.name }}'</h6>
+                                <p class="m-0 fs-12 text-muted mt-1">
+                                    Ensure cookies are issued with the `HttpOnly` attribute (blocks script reading access) and the `Secure` flag (mandates HTTPS packet delivery).
+                                </p>
+                            </div>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <!-- Export to PDF Action -->
+            <div class="glass-card-websec d-flex align-items-center justify-content-between flex-wrap gap-3 py-3">
+                <span class="fs-14 text-muted"><i class="fa-solid fa-file-export me-1"></i> Save this web security profile for developer auditing records.</span>
+                <form method="POST" action="/report">
+                    <input type="hidden" name="module_name" value="Web Security Auditor">
+                    <input type="hidden" name="target" value="{{ results.url }}">
+                    <input type="hidden" name="results_json" value='{{ results | tojson }}'>
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fa-solid fa-file-pdf me-1"></i> Export Security Audit PDF
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Initial Empty State Mock Card -->
+    <div class="glass-card-websec text-center py-5">
+        <div class="display-2 text-muted opacity-25 mb-3">
+            <i class="fa-solid fa-globe fa-spin-pulse" style="--fa-animation-duration: 4s;"></i>
+        </div>
+        <h4 class="text-secondary mb-2">Auditor Awaiting Host URL</h4>
+        <p class="text-muted mx-auto fs-14" style="max-width: 480px;">
+            Input an authorized endpoint address above (e.g. `https://www.google.com`) and run the compliance sweep to analyze security headers, TLS validations, and injection exposures.
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Full-screen Dynamic Sweep Radar Overlay -->
+<div id="audit-loader">
+    <div class="radar-container"></div>
+    <h4 class="fw-bold m-0 text-white animate-pulse">Running Web Security Audit...</h4>
+    <p class="text-muted mt-2 fs-14" style="max-width: 320px; text-align: center;">
+        Performing TLS X.509 handshakes, querying HTTP header flags, inspecting cookies, and auditing injection parameters...
+    </p>
+</div>
+
+<!-- Loader Execution Script -->
+<script>
+    function showLoader() {
+        document.getElementById("audit-loader").style.display = "flex";
+    }
+</script>
+{% endblock %}

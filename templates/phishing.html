@@ -1,0 +1,438 @@
+{% extends 'base.html' %}
+{% block title %}Phishing Header Analyzer{% endblock %}
+
+{% block content %}
+<style>
+    .phishing-header {
+        background: linear-gradient(135deg, #111827 0%, #374151 100%);
+        border-radius: 12px;
+        padding: 30px;
+        color: #ffffff;
+        margin-bottom: 25px;
+        box-shadow: 0 8px 32px rgba(17, 24, 39, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .glass-card-phishing {
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+        margin-bottom: 25px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    
+    .glass-card-phishing:hover {
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+    }
+
+    /* Radar sweep loader */
+    #loadingOverlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(17, 24, 39, 0.85);
+        backdrop-filter: blur(5px);
+        z-index: 9999;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: #fff;
+    }
+
+    .radar {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        border: 2px solid rgba(13, 110, 253, 0.5);
+        position: relative;
+        overflow: hidden;
+        margin-bottom: 20px;
+        box-shadow: 0 0 30px rgba(13, 110, 253, 0.3);
+    }
+    .radar::before {
+        content: '';
+        position: absolute;
+        top: 50%; left: 50%;
+        width: 120px; height: 120px;
+        background: conic-gradient(from 0deg, transparent 70%, rgba(13, 110, 253, 0.8) 100%);
+        transform-origin: 0 0;
+        animation: radar-spin 1.5s linear infinite;
+    }
+    @keyframes radar-spin {
+        100% { transform: rotate(360deg); }
+    }
+
+    /* Vertical Timeline */
+    .hop-timeline {
+        position: relative;
+        padding-left: 30px;
+        list-style: none;
+    }
+    .hop-timeline::before {
+        content: '';
+        position: absolute;
+        top: 0; bottom: 0; left: 11px;
+        width: 3px;
+        background: #e9ecef;
+    }
+    .hop-item {
+        position: relative;
+        margin-bottom: 20px;
+    }
+    .hop-marker {
+        position: absolute;
+        left: -30px;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: var(--bg-light);
+        border: 3px solid var(--accent-blue);
+        text-align: center;
+        line-height: 20px;
+        font-size: 11px;
+        font-weight: bold;
+        color: var(--accent-blue);
+    }
+    .hop-content {
+        background: #f8f9fa;
+        padding: 12px 18px;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+        font-family: 'Fira Code', monospace;
+        font-size: 12.5px;
+        word-break: break-all;
+    }
+
+    .monospace-box {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        font-family: 'Fira Code', monospace;
+        padding: 15px;
+        border-radius: 8px;
+        font-size: 13px;
+        word-break: break-all;
+        position: relative;
+    }
+    
+    .badge-glow-high {
+        background: rgba(220, 53, 69, 0.15);
+        color: #dc3545;
+        border: 1px solid rgba(220, 53, 69, 0.3);
+        box-shadow: 0 0 15px rgba(220, 53, 69, 0.4);
+    }
+    .badge-glow-medium {
+        background: rgba(253, 126, 20, 0.15);
+        color: #fd7e14;
+        border: 1px solid rgba(253, 126, 20, 0.3);
+        box-shadow: 0 0 15px rgba(253, 126, 20, 0.4);
+    }
+    .badge-glow-low {
+        background: rgba(25, 135, 84, 0.15);
+        color: #198754;
+        border: 1px solid rgba(25, 135, 84, 0.3);
+        box-shadow: 0 0 15px rgba(25, 135, 84, 0.4);
+    }
+
+    .risk-score-dial {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        font-weight: 700;
+        margin: 0 auto;
+        color: white;
+    }
+</style>
+
+<!-- Fullscreen Radar Loading Overlay -->
+<div id="loadingOverlay">
+    <div class="radar"></div>
+    <h4 class="mt-3 font-outfit fw-bold">Analyzing Mail Pathways...</h4>
+    <p class="text-white-50">Querying live DNS and VirusTotal API...</p>
+</div>
+
+<div class="container py-4">
+    <div class="phishing-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-2"><i class="fa-solid fa-envelope-open-text me-2 text-primary"></i> Phishing Email Analyzer</h2>
+                <p class="mb-0 text-white-50">Deconstruct email headers, validate SPF/DMARC pathways, and scan embedded links.</p>
+            </div>
+            <div>
+                <i class="fa-solid fa-shield-virus fa-3x text-primary opacity-75"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Input Form Section -->
+    <div class="glass-card-phishing">
+        <form method="POST" action="/phishing" onsubmit="document.getElementById('loadingOverlay').style.display='flex';">
+            <div class="d-flex justify-content-between align-items-end mb-2">
+                <label for="headers" class="form-label fw-bold mb-0">Raw Email Headers</label>
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-success me-2" onclick="loadSample('clean')">
+                        <i class="fa-solid fa-check me-1"></i> Clean Sample
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="loadSample('spoofed')">
+                        <i class="fa-solid fa-skull-crossbones me-1"></i> Spoofed Sample
+                    </button>
+                </div>
+            </div>
+            <textarea class="form-control font-monospace mb-3" id="headers" name="headers" rows="8" placeholder="Paste full raw email headers here (including Delivered-To, Received, From, To, Subject, Date, Message-ID...)" required></textarea>
+            
+            <div class="form-check mb-4">
+                <input class="form-check-input" type="checkbox" value="" id="ethicalCheck" required>
+                <label class="form-check-label text-muted" for="ethicalCheck">
+                    <small>I verify I have authorization to analyze these headers and will not upload highly sensitive corporate secrets to public API scanners.</small>
+                </label>
+            </div>
+            
+            <button type="submit" class="btn btn-primary px-4 py-2 fw-semibold">
+                <i class="fa-solid fa-magnifying-glass-arrow-right me-2"></i> Execute Analysis
+            </button>
+        </form>
+    </div>
+
+    {% if results %}
+    <!-- Analysis Results Section -->
+    <div class="row mb-4">
+        <!-- Overall Risk Rating -->
+        <div class="col-md-4 mb-4 mb-md-0">
+            <div class="glass-card-phishing h-100 text-center">
+                <h5 class="fw-bold mb-4">Overall Threat Risk</h5>
+                {% if results.risk_rating == 'HIGH' %}
+                    <div class="risk-score-dial badge-glow-high mb-3" style="background: #dc3545;">
+                        <i class="fa-solid fa-radiation"></i>
+                    </div>
+                    <h3 class="fw-bold text-danger">HIGH RISK</h3>
+                    <p class="text-muted small">Severe indicators of spoofing or malicious URLs detected.</p>
+                {% elif results.risk_rating == 'MEDIUM' %}
+                    <div class="risk-score-dial badge-glow-medium mb-3" style="background: #fd7e14;">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                    </div>
+                    <h3 class="fw-bold text-warning">MEDIUM RISK</h3>
+                    <p class="text-muted small">Suspicious domain alignments or missing DNS security records.</p>
+                {% else %}
+                    <div class="risk-score-dial badge-glow-low mb-3" style="background: #198754;">
+                        <i class="fa-solid fa-shield-check"></i>
+                    </div>
+                    <h3 class="fw-bold text-success">LOW RISK</h3>
+                    <p class="text-muted small">No significant spoofing indicators or malicious URLs detected.</p>
+                {% endif %}
+                <div class="mt-3">
+                    <span class="badge bg-secondary">Risk Score: {{ results.risk_score }} points</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spoofing Detection Board -->
+        <div class="col-md-8">
+            <div class="glass-card-phishing h-100">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">Domain Alignment Validation</h5>
+                    {% if results.spoofing.is_suspicious %}
+                        <span class="badge badge-glow-high fs-6 px-3 py-2"><i class="fa-solid fa-flag text-danger me-1"></i> SUSPICIOUS</span>
+                    {% else %}
+                        <span class="badge badge-glow-low fs-6 px-3 py-2"><i class="fa-solid fa-check text-success me-1"></i> PASS</span>
+                    {% endif %}
+                </div>
+                
+                <table class="table table-borderless table-sm mb-4">
+                    <tbody>
+                        <tr>
+                            <td class="text-muted" width="120">From</td>
+                            <td class="fw-bold">{{ results.parsed_headers.from }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Return-Path</td>
+                            <td>{{ results.parsed_headers.return_path or '<em class="text-muted">None specified</em>'|safe }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Reply-To</td>
+                            <td>{{ results.parsed_headers.reply_to or '<em class="text-muted">None specified</em>'|safe }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                {% if results.spoofing.is_suspicious %}
+                    <div class="alert alert-danger mb-0">
+                        <p class="fw-bold mb-2"><i class="fa-solid fa-circle-exclamation me-1"></i> Spoofing Indicators Detected:</p>
+                        <ul class="mb-0 ps-3">
+                            {% for reason in results.spoofing.reasons %}
+                                <li>{{ reason }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% else %}
+                    <div class="alert alert-success mb-0">
+                        <i class="fa-solid fa-shield-halved me-1"></i> Sender pathways align perfectly with originating IP/Domain configurations.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Live DNS TXT Records -->
+    <div class="row mb-4">
+        <div class="col-md-6 mb-4 mb-md-0">
+            <div class="glass-card-phishing h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-server text-primary me-2"></i> SPF Record</h5>
+                    {% if results.dns_security.spf_exists %}
+                        <span class="badge bg-success"><i class="fa-solid fa-check"></i> VALID</span>
+                    {% else %}
+                        <span class="badge bg-danger"><i class="fa-solid fa-xmark"></i> MISSING</span>
+                    {% endif %}
+                </div>
+                <div class="monospace-box">
+                    {{ results.dns_security.spf_record }}
+                    <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-2 border-0" onclick="navigator.clipboard.writeText('{{ results.dns_security.spf_record|replace("'", "\\'") }}'); this.innerHTML='<i class=\'fa-solid fa-check\'></i> Copied!';" title="Copy to clipboard">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="glass-card-phishing h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-shield-dog text-primary me-2"></i> DMARC Record</h5>
+                    {% if results.dns_security.dmarc_exists %}
+                        <span class="badge bg-success"><i class="fa-solid fa-check"></i> VALID</span>
+                    {% else %}
+                        <span class="badge bg-danger"><i class="fa-solid fa-xmark"></i> MISSING</span>
+                    {% endif %}
+                </div>
+                <div class="monospace-box">
+                    {{ results.dns_security.dmarc_record }}
+                    <button class="btn btn-sm btn-outline-light position-absolute top-0 end-0 m-2 border-0" onclick="navigator.clipboard.writeText('{{ results.dns_security.dmarc_record|replace("'", "\\'") }}'); this.innerHTML='<i class=\'fa-solid fa-check\'></i> Copied!';" title="Copy to clipboard">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- URL Scanning Results -->
+    <div class="glass-card-phishing mb-4">
+        <h5 class="fw-bold mb-4"><i class="fa-solid fa-link text-primary me-2"></i> Embedded Header Links (VirusTotal Scan)</h5>
+        
+        {% if results.url_analysis.checked_urls %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Target URL</th>
+                            <th>VT Verdict</th>
+                            <th>Detection Engines</th>
+                            <th>Reputation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for link in results.url_analysis.checked_urls %}
+                        <tr>
+                            <td class="font-monospace text-truncate" style="max-width: 300px;" title="{{ link.url }}">{{ link.url }}</td>
+                            <td>
+                                {% if link.verdict == 'MALICIOUS' %}
+                                    <span class="badge bg-danger">MALICIOUS</span>
+                                {% elif link.verdict == 'SUSPICIOUS' %}
+                                    <span class="badge bg-warning text-dark">SUSPICIOUS</span>
+                                {% elif link.verdict == 'CLEAN' %}
+                                    <span class="badge bg-success">CLEAN</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ link.verdict }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ link.malicious_count }} / {{ link.total_engines }} flagged</td>
+                            <td>{{ link.reputation }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if results.url_analysis.urls_found|length > 3 %}
+                <p class="text-muted small mt-2"><i class="fa-solid fa-info-circle me-1"></i> Notice: Additional {{ results.url_analysis.urls_found|length - 3 }} URLs were found but skipped to respect free-tier API quotas.</p>
+            {% endif %}
+        {% else %}
+            <div class="text-center text-muted py-3">
+                <i class="fa-solid fa-unlink fa-2x mb-2 opacity-50"></i>
+                <p class="mb-0">No links were detected inside the email headers.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Received Hops Timeline -->
+    <div class="glass-card-phishing mb-4">
+        <h5 class="fw-bold mb-4"><i class="fa-solid fa-route text-primary me-2"></i> Server Routing Path (Received Headers)</h5>
+        {% if results.parsed_headers.received %}
+            <ul class="hop-timeline">
+                {% for hop in results.parsed_headers.received|reverse %}
+                <li class="hop-item">
+                    <div class="hop-marker">{{ loop.index }}</div>
+                    <div class="hop-content">
+                        {{ hop }}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="text-muted">No Received routing hops were found in this header block.</p>
+        {% endif %}
+    </div>
+
+    {% endif %}
+
+</div>
+
+<!-- Sample Injector Script -->
+<script>
+    const cleanSample = `Delivered-To: admin@cyberguard-pro.com
+Received: by 2002:a0c:8000:0:0:0:0:0 with SMTP id mx.google.com;
+        Sun, 18 May 2026 10:15:22 -0700
+Received: from mail.microsoft.com (mail.microsoft.com [207.46.200.10])
+        by mx.google.com with ESMTPS id abcdefg12345;
+        Sun, 18 May 2026 10:15:21 -0700
+From: "Microsoft Security Center" <security@microsoft.com>
+To: admin@cyberguard-pro.com
+Subject: New login from unrecognized device
+Date: Sun, 18 May 2026 17:15:15 +0000
+Message-ID: <sec-alert-893012@microsoft.com>
+Return-Path: <security@microsoft.com>`;
+
+    const spoofedSample = `Delivered-To: victim@company.com
+Received: by mx.google.com with SMTP id 987654321;
+        Mon, 19 May 2026 14:30:00 -0700
+Received: from mail.hackermail.net (mail.hackermail.net [185.220.101.5])
+        by mx.google.com with ESMTPS id spoof123;
+        Mon, 19 May 2026 14:29:55 -0700
+From: "PayPal Account Security" <security@paypal.com>
+To: victim@company.com
+Reply-To: refund-department-paypal@gmail.com
+Subject: URGENT: Your account has been restricted!
+Date: Mon, 19 May 2026 21:29:45 +0000
+Message-ID: <99999@hackermail.net>
+Return-Path: <attacker_bot@hackermail.net>
+List-Unsubscribe: <http://phishing-site-example.com/unsubscribe>`;
+
+    function loadSample(type) {
+        const textarea = document.getElementById('headers');
+        if (type === 'clean') {
+            textarea.value = cleanSample;
+        } else {
+            textarea.value = spoofedSample;
+        }
+        // Highlight textarea briefly
+        textarea.style.backgroundColor = '#e8f5e9';
+        setTimeout(() => {
+            textarea.style.backgroundColor = '';
+        }, 500);
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard{% endblock %} - CyberGuard Pro</title>
+    
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    
+    <!-- Font Awesome CDN for Vector Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- Google Fonts for Professional Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-navy: #1B3A6B;
+            --accent-blue: #0d6efd;
+            --accent-hover: #0b5ed7;
+            --bg-light: #f4f6f9;
+            --text-dark: #212529;
+            --text-muted: #6c757d;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1, h2, h3, h4, h5, h6, .navbar-brand {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+        }
+
+        /* Navbar Custom Styling */
+        .navbar-custom {
+            background-color: var(--primary-navy) !important;
+            box-shadow: 0 4px 12px rgba(27, 58, 107, 0.15);
+        }
+
+        .navbar-brand {
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .navbar-brand span {
+            color: #63b3ed;
+        }
+
+        .navbar-custom .nav-link {
+            color: rgba(255, 255, 255, 0.8) !important;
+            font-weight: 500;
+            font-size: 14px;
+            padding: 8px 14px !important;
+            border-radius: 6px;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .navbar-custom .nav-link:hover, 
+        .navbar-custom .nav-link.active {
+            color: #ffffff !important;
+            background-color: rgba(255, 255, 255, 0.08);
+        }
+
+        /* Sidebar Styling */
+        .sidebar-container {
+            width: 260px;
+            background-color: #ffffff;
+            border-right: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 4px 0 16px rgba(0, 0, 0, 0.02);
+            position: sticky;
+            top: 72px; /* Height of the navbar */
+            height: calc(100vh - 72px);
+            padding: 24px 16px;
+            overflow-y: auto;
+            flex-shrink: 0;
+            transition: all 0.3s;
+        }
+
+        .sidebar-heading {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            padding-left: 12px;
+            font-weight: 700;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            padding-left: 0;
+            margin-bottom: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            color: var(--text-dark);
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar-link:hover {
+            color: var(--accent-blue);
+            background-color: rgba(13, 110, 253, 0.05);
+            border-left-color: rgba(13, 110, 253, 0.3);
+        }
+
+        .sidebar-link.active {
+            color: var(--accent-blue);
+            background-color: rgba(13, 110, 253, 0.08);
+            border-left-color: var(--accent-blue);
+            font-weight: 600;
+        }
+
+        .sidebar-link i {
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+            color: var(--text-muted);
+            transition: color 0.2s;
+        }
+
+        .sidebar-link:hover i,
+        .sidebar-link.active i {
+            color: var(--accent-blue);
+        }
+
+        /* Content Area */
+        .page-wrapper {
+            display: flex;
+            flex: 1;
+        }
+
+        .main-content-area {
+            flex-grow: 1;
+            padding: 40px;
+            background-color: var(--bg-light);
+        }
+
+        /* White Cards with Blue Accent styling */
+        .cyber-card, .glass-card {
+            background-color: #ffffff;
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+            padding: 30px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-top: 4px solid var(--primary-navy);
+        }
+
+        .cyber-card:hover, .glass-card:hover {
+            box-shadow: 0 6px 24px rgba(27, 58, 107, 0.08);
+        }
+
+        /* Terminal Results Custom Display */
+        .terminal-block, .terminal-output {
+            background-color: #0b0f19;
+            border: 1px solid rgba(27, 58, 107, 0.2);
+            border-left: 4px solid var(--accent-blue);
+            border-radius: 10px;
+            padding: 20px;
+            font-family: 'Fira Code', monospace;
+            font-size: 13.5px;
+            color: #38bdf8;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.6);
+        }
+
+        /* Footer styling */
+        footer {
+            background-color: #ffffff;
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+            padding: 20px 0;
+            margin-top: auto;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* Custom Responsive Elements */
+        @media (max-width: 991.98px) {
+            .sidebar-container {
+                display: none; /* Hide sidebar on mobile/tablet view */
+            }
+            .main-content-area {
+                padding: 24px 16px;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <!-- 1. Dark Navy Top Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom sticky-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand" href="{{ url_for('index') }}">
+                <i class="fa-solid fa-shield-halved me-2"></i>CyberGuard <span>Pro</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#topNavbar" aria-controls="topNavbar" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="topNavbar">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('index') }}"><i class="fa-solid fa-house me-1"></i>Home</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/recon' %}active{% endif %}" href="{{ url_for('recon') }}">OSINT</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/network' %}active{% endif %}" href="{{ url_for('network') }}">Network</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/threat' %}active{% endif %}" href="{{ url_for('threat') }}">Threat Intel</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/websec' %}active{% endif %}" href="{{ url_for('websec') }}">Web Security</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/forensics' %}active{% endif %}" href="{{ url_for('forensics') }}">Forensics</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/phishing' %}active{% endif %}" href="{{ url_for('phishing') }}">Phishing</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/passwords' %}active{% endif %}" href="{{ url_for('passwords') }}">Passwords</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.path == '/report' %}active{% endif %}" href="{{ url_for('report') }}">Reports</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 2. Main Page Layout Wrapper -->
+    <div class="page-wrapper">
+        
+        <!-- Collapsible Sidebar with Quick Access Icons -->
+        <aside class="sidebar-container d-none d-lg-block">
+            <div class="sidebar-heading">Security Modules</div>
+            <ul class="sidebar-menu">
+                <li>
+                    <a href="{{ url_for('recon') }}" class="sidebar-link {% if request.path == '/recon' %}active{% endif %}">
+                        <i class="fa-solid fa-globe"></i> OSINT Recon
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('network') }}" class="sidebar-link {% if request.path == '/network' %}active{% endif %}">
+                        <i class="fa-solid fa-network-wired"></i> Network Scan
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('threat') }}" class="sidebar-link {% if request.path == '/threat' %}active{% endif %}">
+                        <i class="fa-solid fa-database"></i> Threat Intel
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('websec') }}" class="sidebar-link {% if request.path == '/websec' %}active{% endif %}">
+                        <i class="fa-solid fa-code"></i> Web Security
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('forensics') }}" class="sidebar-link {% if request.path == '/forensics' %}active{% endif %}">
+                        <i class="fa-solid fa-magnifying-glass-location"></i> File Forensics
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('phishing') }}" class="sidebar-link {% if request.path == '/phishing' %}active{% endif %}">
+                        <i class="fa-solid fa-envelope-open-text"></i> Phishing Audit
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('passwords') }}" class="sidebar-link {% if request.path == '/passwords' %}active{% endif %}">
+                        <i class="fa-solid fa-key"></i> Password Audit
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('report') }}" class="sidebar-link {% if request.path == '/report' %}active{% endif %}">
+                        <i class="fa-solid fa-file-pdf"></i> PDF Reports
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- 3. Dynamic Page Viewport -->
+        <main class="main-content-area">
+            <div class="container-fluid p-0">
+                
+                <!-- Custom Alert / Session Flash Area -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        {% with messages = get_flashed_messages(with_categories=true) %}
+                            {% if messages %}
+                                {% for category, message in messages %}
+                                    {% if category == 'success' %}
+                                        <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm" role="alert" style="border-left: 5px solid #0f5132 !important; border-radius: 8px;">
+                                            <i class="fa-solid fa-circle-check me-2"></i>{{ message }}
+                                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                        </div>
+                                    {% else %}
+                                        <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm" role="alert" style="border-left: 5px solid #842029 !important; border-radius: 8px;">
+                                            <i class="fa-solid fa-circle-exclamation me-2"></i>{{ message }}
+                                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endwith %}
+                    </div>
+                </div>
+
+                <!-- Child Content Render Point -->
+                {% block content %}{% endblock %}
+
+            </div>
+        </main>
+    </div>
+
+    <!-- 4. Footer Section -->
+    <footer class="text-center">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    <p class="mb-0">CyberGuard Pro | Academic Project | Cybersecurity & Forensics</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 Bundle with Popper JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    
+    <!-- Session Caching Automation for Report Compiler -->
+    {% if results %}
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const path = window.location.pathname.replace('/', '').toLowerCase();
+            // Automatically capture any executed module's results and cache them for the Report Compiler
+            if (path && path !== 'report' && path !== 'index') {
+                try {
+                    const resultsData = {{ results | tojson | safe }};
+                    sessionStorage.setItem(`cg_${path}_data`, JSON.stringify(resultsData, null, 2));
+                    console.log(`[CyberGuard Pro] Automatically cached ${path} module results to local session.`);
+                } catch (e) {
+                    console.error("[CyberGuard Pro] Failed to cache session data:", e);
+                }
+            }
+        });
+    </script>
+    {% endif %}
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
